@@ -106,7 +106,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(nginx_http_requests_total{job=\"nginx\", instance=~\".*:3001\"}[1m])",
+          "expr": "rate(nginx_http_requests_total{job=\"nginx\", service=\"dev-proxy\"}[1m]) * on() group_left() (absent(nginx_up{job=\"nginx\"}) or (nginx_up{job=\"nginx\"}))",
           "legendFormat": "Requests/sec",
           "range": true,
           "refId": "A"
@@ -207,7 +207,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "nginx_connections_active{job=\"nginx\", instance=~\".*:3001\"}",
+          "expr": "nginx_connections_active{job=\"nginx\", service=\"dev-proxy\"}",
           "legendFormat": "Active connections",
           "range": true,
           "refId": "A"
@@ -270,7 +270,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(nginx_http_requests_total{job=\"nginx\", instance=~\".*:3001\"})",
+          "expr": "sum(nginx_http_requests_total{job=\"nginx\", service=\"dev-proxy\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -363,7 +363,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(nginx_http_request_size_bytes_sum{job=\"nginx\", instance=~\".*:3001\"}[1m])",
+          "expr": "rate(nginx_http_request_size_bytes_sum{job=\"nginx\", service=\"dev-proxy\"}[1m])",
           "legendFormat": "Bytes sent",
           "range": true,
           "refId": "A"
