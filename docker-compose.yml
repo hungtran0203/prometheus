@@ -65,7 +65,7 @@ services:
     image: nginx:latest
     container_name: dev-proxy
     ports:
-      - "80:80"      # Main metrics port
+      - "8686:80"      # Main metrics port
       - "3000:3000"  # Node.js port
       - "3001:3001"  # Next.js port
       - "3002:3002"  # Remix port

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Configuration
-STATUS_URL="http://localhost:80"
-STATUS_PAGE_URL="http://localhost:80/status"
-STUB_STATUS_URL="http://localhost:80/stub_status"
+STATUS_URL="http://localhost:8686"
+STATUS_PAGE_URL="http://localhost:8686/status"
+STUB_STATUS_URL="http://localhost:8686/stub_status"
 METRICS_URL="http://localhost:9113/metrics"
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -84,7 +84,7 @@ test_port() {
 }
 
 # Test the ports
-test_port "80" "Status page"
+test_port "8686" "Status page"
 # Accept either 404 or 502 for port forwarding tests
 test_port "3000" "Node.js app (forwarding to 33000)" "404,502"
 test_port "3001" "Next.js app (forwarding to 33001)" "404,502"
@@ -113,9 +113,9 @@ echo -e "  - http://localhost:3002 → http://localhost:33002 (Remix)"
 echo -e "  - http://localhost:8000 → http://localhost:38000 (Rust)"
 echo -e "  - http://localhost:3003 → http://localhost:33003 (React)"
 echo -e "${YELLOW}Status Pages:${NC}"
-echo -e "  - Text Status: http://localhost:80"
-echo -e "  - HTML Status: http://localhost:80/status"
-echo -e "  - Raw Metrics: http://localhost:80/stub_status"
+echo -e "  - Text Status: http://localhost:8686"
+echo -e "  - HTML Status: http://localhost:8686/status"
+echo -e "  - Raw Metrics: http://localhost:8686/stub_status"
 echo -e "  - Prometheus Metrics: http://localhost:9113/metrics"
 echo -e "  - Grafana Dashboard: http://localhost:3333"
 
