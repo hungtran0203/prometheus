@@ -2,6 +2,8 @@
 
 # Configuration
 STATUS_URL="http://localhost:80"
+STATUS_PAGE_URL="http://localhost:80/status"
+STUB_STATUS_URL="http://localhost:80/stub_status"
 METRICS_URL="http://localhost:9113/metrics"
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -29,6 +31,22 @@ if ! curl -s --head "${STATUS_URL}" > /dev/null; then
 fi
 
 echo -e "${GREEN}Development proxy is running!${NC}"
+
+# Check if the browser status page is accessible
+echo -e "\n${YELLOW}Checking if the browser-friendly status page is accessible...${NC}"
+if ! curl -s --head "${STATUS_PAGE_URL}" > /dev/null; then
+    echo -e "${RED}Error: Browser status page is not available at ${STATUS_PAGE_URL}${NC}"
+else
+    echo -e "${GREEN}Browser status page is accessible at ${STATUS_PAGE_URL}${NC}"
+fi
+
+# Check if the stub_status endpoint is accessible
+echo -e "\n${YELLOW}Checking if the raw stub_status endpoint is accessible...${NC}"
+if ! curl -s --head "${STUB_STATUS_URL}" > /dev/null; then
+    echo -e "${RED}Error: Raw stub_status endpoint is not available at ${STUB_STATUS_URL}${NC}"
+else
+    echo -e "${GREEN}Raw stub_status endpoint is accessible at ${STUB_STATUS_URL}${NC}"
+fi
 
 # Check if the metrics exporter is running
 echo -e "\n${YELLOW}Checking if the Nginx metrics exporter is running...${NC}"
@@ -86,8 +104,11 @@ echo -e "  - http://localhost:3001 → http://localhost:33001 (Next.js)"
 echo -e "  - http://localhost:3002 → http://localhost:33002 (Remix)"
 echo -e "  - http://localhost:8000 → http://localhost:38000 (Rust)"
 echo -e "  - http://localhost:3003 → http://localhost:33003 (React)"
-echo -e "${YELLOW}Nginx status page:${NC} http://localhost:80"
-echo -e "${YELLOW}Nginx Prometheus metrics:${NC} http://localhost:9113/metrics"
-echo -e "${YELLOW}View the Nginx dashboard in Grafana at:${NC} http://localhost:3333"
+echo -e "${YELLOW}Status Pages:${NC}"
+echo -e "  - Text Status: http://localhost:80"
+echo -e "  - HTML Status: http://localhost:80/status"
+echo -e "  - Raw Metrics: http://localhost:80/stub_status"
+echo -e "  - Prometheus Metrics: http://localhost:9113/metrics"
+echo -e "  - Grafana Dashboard: http://localhost:3333"
 
 exit 0 
