@@ -66,16 +66,17 @@ services:
     container_name: dev-proxy
     ports:
       - "8686:80"      # Main metrics port
-      - "3000:3000"  # Node.js port
-      - "3001:3001"  # Next.js port
-      - "3002:3002"  # Remix port
-      - "8000:8000"  # Rust port
-      - "3003:3003"  # React port
+      - "3000:3000"    # Node.js port
+      - "3001:3001"    # Next.js port
+      - "3002:3002"    # Remix port
+      - "8000:8000"    # Rust port
+      - "3003:3003"    # React port
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/logs:/var/log/nginx
     restart: always
 
+  # Main Nginx exporter for general metrics
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
     container_name: nginx-exporter
@@ -83,6 +84,72 @@ services:
       - "9113:9113"  # Exporter metrics port
     command:
       - -nginx.scrape-uri=http://nginx:80/stub_status
+      - -nginx.namespace=nginx
+    depends_on:
+      - nginx
+    restart: always
+
+  # Node.js app metrics exporter
+  nodejs-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nodejs-exporter
+    ports:
+      - "9114:9113"  # Note: externally exposed on a different port
+    command:
+      - -nginx.scrape-uri=http://nginx:3000/nodejs_status
+      - -nginx.namespace=nodejs
+    depends_on:
+      - nginx
+    restart: always
+
+  # Next.js app metrics exporter
+  nextjs-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nextjs-exporter
+    ports:
+      - "9115:9113"  # Note: externally exposed on a different port
+    command:
+      - -nginx.scrape-uri=http://nginx:3001/nextjs_status
+      - -nginx.namespace=nextjs
+    depends_on:
+      - nginx
+    restart: always
+
+  # Remix app metrics exporter
+  remix-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: remix-exporter
+    ports:
+      - "9116:9113"  # Note: externally exposed on a different port
+    command:
+      - -nginx.scrape-uri=http://nginx:3002/remix_status
+      - -nginx.namespace=remix
+    depends_on:
+      - nginx
+    restart: always
+
+  # Rust app metrics exporter
+  rust-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: rust-exporter
+    ports:
+      - "9117:9113"  # Note: externally exposed on a different port
+    command:
+      - -nginx.scrape-uri=http://nginx:8000/rust_status
+      - -nginx.namespace=rust
+    depends_on:
+      - nginx
+    restart: always
+
+  # React app metrics exporter
+  react-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: react-exporter
+    ports:
+      - "9118:9113"  # Note: externally exposed on a different port
+    command:
+      - -nginx.scrape-uri=http://nginx:3003/react_status
+      - -nginx.namespace=react
     depends_on:
       - nginx
     restart: always
