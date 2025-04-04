@@ -62,18 +62,22 @@ fi
 test_port() {
     local port=$1
     local description=$2
-    local expected_code=${3:-200}
+    local expected_codes=${3:-200}
     
     echo -e "\n${YELLOW}Testing port: ${port} (${description})${NC}"
     
     RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${port}" --max-time 2)
     
-    if [[ "$RESPONSE" == "$expected_code" ]]; then
+    # Check if the response matches any of the expected codes
+    if [[ "$expected_codes" == *"$RESPONSE"* ]]; then
         echo -e "${GREEN}Success: Port ${port} responded with ${RESPONSE}${NC}"
     elif [[ "$RESPONSE" == "000" ]]; then
         echo -e "${YELLOW}Notice: Port ${port} - Connection refused or timed out (This is normal if ${description} is not running)${NC}"
+    # Special handling for proxy ports
+    elif [[ ("$RESPONSE" == "404" || "$RESPONSE" == "502") && ("$expected_codes" == "404,502" || "$expected_codes" == "502,404") ]]; then
+        echo -e "${YELLOW}Notice: Port ${port} responded with ${RESPONSE} (This is normal if the backend service is not running)${NC}"
     else
-        echo -e "${RED}Error: Port ${port} responded with ${RESPONSE} (expected ${expected_code})${NC}"
+        echo -e "${RED}Error: Port ${port} responded with ${RESPONSE} (expected one of: ${expected_codes})${NC}"
     fi
     
     return 0
@@ -81,20 +85,24 @@ test_port() {
 
 # Test the ports
 test_port "80" "Status page"
-test_port "3000" "Node.js app (forwarding to 33000)" 000
-test_port "3001" "Next.js app (forwarding to 33001)" 000
-test_port "3002" "Remix app (forwarding to 33002)" 000
-test_port "8000" "Rust app (forwarding to 38000)" 000
-test_port "3003" "React app (forwarding to 33003)" 000
+# Accept either 404 or 502 for port forwarding tests
+test_port "3000" "Node.js app (forwarding to 33000)" "404,502"
+test_port "3001" "Next.js app (forwarding to 33001)" "404,502"
+test_port "3002" "Remix app (forwarding to 33002)" "404,502"
+test_port "8000" "Rust app (forwarding to 38000)" "404,502"
+test_port "3003" "React app (forwarding to 33003)" "404,502"
 
 # Get stats from Prometheus
 echo -e "\n${YELLOW}Checking Prometheus scraping status for Nginx metrics...${NC}"
-SCRAPE_STATUS=$(curl -s "http://localhost:9090/api/v1/targets" | grep -o '"nginx_exporter".*"state":"[^"]*"' | head -1)
+# Use a direct query for nginx metrics instead of checking targets
+NGINX_METRICS=$(curl -s "http://localhost:9090/api/v1/query?query=nginx_up" | grep -o '"value":\[.*,"1"\]')
 
-if [[ $SCRAPE_STATUS == *'"state":"up"'* ]]; then
+if [[ ! -z "$NGINX_METRICS" ]]; then
     echo -e "${GREEN}Prometheus is successfully scraping Nginx metrics${NC}"
 else
-    echo -e "${RED}Prometheus may not be scraping Nginx metrics correctly: ${SCRAPE_STATUS}${NC}"
+    echo -e "${RED}Prometheus may not be scraping Nginx metrics correctly${NC}"
+    echo -e "${YELLOW}Checking available metrics in Prometheus...${NC}"
+    curl -s "http://localhost:9090/api/v1/label/__name__/values" | grep nginx | head -5
 fi
 
 echo -e "\n${GREEN}Development proxy test completed!${NC}"

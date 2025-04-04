@@ -28,7 +28,7 @@ scrape_configs:
           service: 'nodejs-app'
           environment: 'development'
           
-  - job_name: 'nginx_exporter'
+  - job_name: 'nginx'
     scrape_interval: 5s
     static_configs:
       - targets: ['nginx-exporter:9113']
