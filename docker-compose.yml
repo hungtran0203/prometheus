@@ -83,8 +83,8 @@ services:
     ports:
       - "9113:9113"  # Exporter metrics port
     command:
-      - -nginx.scrape-uri=http://nginx:80/stub_status
-      - -nginx.namespace=nginx
+      - "--nginx.scrape-uri=http://nginx:80/stub_status"
+      - "--prometheus.const-label=app=general"
     depends_on:
       - nginx
     restart: always
@@ -96,8 +96,9 @@ services:
     ports:
       - "9114:9113"  # Note: externally exposed on a different port
     command:
-      - -nginx.scrape-uri=http://nginx:3000/nodejs_status
-      - -nginx.namespace=nodejs
+      - "--nginx.scrape-uri=http://nginx:3000/nodejs_status"
+      - "--prometheus.const-label=app=nodejs"
+      - "--prometheus.const-label=port=3000"
     depends_on:
       - nginx
     restart: always
@@ -109,8 +110,9 @@ services:
     ports:
       - "9115:9113"  # Note: externally exposed on a different port
     command:
-      - -nginx.scrape-uri=http://nginx:3001/nextjs_status
-      - -nginx.namespace=nextjs
+      - "--nginx.scrape-uri=http://nginx:3001/nextjs_status"
+      - "--prometheus.const-label=app=nextjs"
+      - "--prometheus.const-label=port=3001"
     depends_on:
       - nginx
     restart: always
@@ -122,8 +124,9 @@ services:
     ports:
       - "9116:9113"  # Note: externally exposed on a different port
     command:
-      - -nginx.scrape-uri=http://nginx:3002/remix_status
-      - -nginx.namespace=remix
+      - "--nginx.scrape-uri=http://nginx:3002/remix_status"
+      - "--prometheus.const-label=app=remix"
+      - "--prometheus.const-label=port=3002"
     depends_on:
       - nginx
     restart: always
@@ -135,8 +138,9 @@ services:
     ports:
       - "9117:9113"  # Note: externally exposed on a different port
     command:
-      - -nginx.scrape-uri=http://nginx:8000/rust_status
-      - -nginx.namespace=rust
+      - "--nginx.scrape-uri=http://nginx:8000/rust_status"
+      - "--prometheus.const-label=app=rust"
+      - "--prometheus.const-label=port=8000"
     depends_on:
       - nginx
     restart: always
@@ -148,8 +152,9 @@ services:
     ports:
       - "9118:9113"  # Note: externally exposed on a different port
     command:
-      - -nginx.scrape-uri=http://nginx:3003/react_status
-      - -nginx.namespace=react
+      - "--nginx.scrape-uri=http://nginx:3003/react_status"
+      - "--prometheus.const-label=app=react"
+      - "--prometheus.const-label=port=3003"
     depends_on:
       - nginx
     restart: always
