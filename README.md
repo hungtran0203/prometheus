@@ -24,7 +24,7 @@ This repository contains a Docker Compose setup for a complete monitoring stack 
 
 2. Access the services:
    - Prometheus: http://localhost:9090
-   - Grafana: http://localhost:3000 (credentials: admin/admin)
+   - Grafana: http://localhost:3333 (credentials: admin/admin)
 
 ### MacOS Metrics Collection
 

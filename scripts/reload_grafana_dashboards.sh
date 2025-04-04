@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-GRAFANA_URL="http://localhost:3000"
+GRAFANA_URL="http://localhost:3333"
 GRAFANA_USER="admin"
 GRAFANA_PASSWORD="admin"
 
