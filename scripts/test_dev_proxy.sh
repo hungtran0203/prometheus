@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Configuration
-METRICS_URL="http://localhost:80"
+STATUS_URL="http://localhost:80"
+METRICS_URL="http://localhost:9113/metrics"
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -20,14 +21,24 @@ fi
 
 # Check if the proxy is running
 echo -e "\n${YELLOW}Checking if the development proxy is running...${NC}"
-if ! curl -s --head "${METRICS_URL}" > /dev/null; then
-    echo -e "${RED}Error: Development proxy is not running at ${METRICS_URL}${NC}"
+if ! curl -s --head "${STATUS_URL}" > /dev/null; then
+    echo -e "${RED}Error: Development proxy is not running at ${STATUS_URL}${NC}"
     echo -e "${YELLOW}Make sure your Docker Compose setup is running with:${NC}"
     echo -e "  docker compose up -d"
     exit 1
 fi
 
 echo -e "${GREEN}Development proxy is running!${NC}"
+
+# Check if the metrics exporter is running
+echo -e "\n${YELLOW}Checking if the Nginx metrics exporter is running...${NC}"
+if ! curl -s --head "${METRICS_URL}" > /dev/null; then
+    echo -e "${RED}Error: Nginx metrics exporter is not running at ${METRICS_URL}${NC}"
+    echo -e "${YELLOW}Make sure your Docker Compose setup is running with:${NC}"
+    echo -e "  docker compose up -d"
+else
+    echo -e "${GREEN}Nginx metrics exporter is running!${NC}"
+fi
 
 # Function to test a port
 test_port() {
@@ -75,7 +86,8 @@ echo -e "  - http://localhost:3001 → http://localhost:33001 (Next.js)"
 echo -e "  - http://localhost:3002 → http://localhost:33002 (Remix)"
 echo -e "  - http://localhost:8000 → http://localhost:38000 (Rust)"
 echo -e "  - http://localhost:3003 → http://localhost:33003 (React)"
-echo -e "${YELLOW}Access the Nginx metrics at:${NC} http://localhost:9113/metrics"
+echo -e "${YELLOW}Nginx status page:${NC} http://localhost:80"
+echo -e "${YELLOW}Nginx Prometheus metrics:${NC} http://localhost:9113/metrics"
 echo -e "${YELLOW}View the Nginx dashboard in Grafana at:${NC} http://localhost:3333"
 
 exit 0 
