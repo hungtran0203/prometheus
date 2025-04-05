@@ -49,28 +49,6 @@ scrape_configs:
           app: 'nodejs'
           port: '3000'
 
-  # Specific metrics for the Next.js application
-  - job_name: 'nextjs_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['nextjs-exporter:9113']
-        labels:
-          service: 'nextjs-proxy'
-          environment: 'development'
-          app: 'nextjs'
-          port: '3001'
-
-  # Specific metrics for the Remix application
-  - job_name: 'remix_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['remix-exporter:9113']
-        labels:
-          service: 'remix-proxy'
-          environment: 'development'
-          app: 'remix'
-          port: '3002'
-
   # Specific metrics for the Rust application
   - job_name: 'rust_proxy'
     scrape_interval: 5s
@@ -80,15 +58,4 @@ scrape_configs:
           service: 'rust-proxy'
           environment: 'development'
           app: 'rust'
-          port: '8000'
-
-  # Specific metrics for the React application
-  - job_name: 'react_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['react-exporter:9113']
-        labels:
-          service: 'react-proxy'
-          environment: 'development'
-          app: 'react'
-          port: '3003' 
+          port: '8000' 
