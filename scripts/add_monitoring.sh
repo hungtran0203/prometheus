@@ -17,9 +17,9 @@ APP_NAME_CAP=$(echo "$APP_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,
 
 echo "🔧 Setting up monitoring for $APP_NAME_CAP on port $PORT (forwarding to $TARGET_PORT)"
 
-# 1. Create the Nginx configuration for the new app
+# 1. Create the Nginx configuration for the new app in the servers directory
 echo "🔧 Adding Nginx configuration..."
-cat > nginx_config.tmp << EOF
+cat > nginx/servers/${APP_NAME}.conf << EOF
 # Port forwarding for $APP_NAME app ($PORT -> $TARGET_PORT)
 server {
     listen $PORT;
@@ -46,14 +46,6 @@ server {
     }
 }
 EOF
-
-# Find the last closing brace and insert our config before it
-LAST_BRACE_LINE=$(grep -n "^}" nginx/nginx.conf | tail -1 | cut -d: -f1)
-head -n $((LAST_BRACE_LINE-1)) nginx/nginx.conf > nginx/nginx.conf.new
-cat nginx_config.tmp >> nginx/nginx.conf.new
-tail -n +$((LAST_BRACE_LINE)) nginx/nginx.conf >> nginx/nginx.conf.new
-mv nginx/nginx.conf.new nginx/nginx.conf
-rm nginx_config.tmp
 
 # 2. Update main docker-compose.yml with port mapping
 echo "🔧 Updating docker-compose.yml with port mapping..."
@@ -161,49 +153,49 @@ echo "🔧 Updating status page..."
 STATUS_ENDPOINT="<li><a href=\"/${APP_NAME}_status\">/${APP_NAME}_status</a> - $APP_NAME_CAP app (port $PORT)</li>"
 
 # Find the section containing "Per-Application Status Endpoints" and add our entry before </ul>
-SECTION_START=$(grep -n "Per-Application Status Endpoints" nginx/nginx.conf | cut -d: -f1)
+SECTION_START=$(grep -n "Per-Application Status Endpoints" nginx/servers/main.conf | cut -d: -f1)
 if [ -n "$SECTION_START" ]; then
   # Find the closing </ul> tag after the section start
-  UL_LINE=$(tail -n +$SECTION_START nginx/nginx.conf | grep -n "</ul>" | head -1 | cut -d: -f1)
+  UL_LINE=$(tail -n +$SECTION_START nginx/servers/main.conf | grep -n "</ul>" | head -1 | cut -d: -f1)
   if [ -n "$UL_LINE" ]; then
     UL_LINE_ABS=$((SECTION_START + UL_LINE - 1))
     
     # Create modified file
-    head -n $((UL_LINE_ABS-1)) nginx/nginx.conf > nginx/nginx.conf.new
-    echo "                $STATUS_ENDPOINT" >> nginx/nginx.conf.new
-    tail -n +$UL_LINE_ABS nginx/nginx.conf >> nginx/nginx.conf.new
-    mv nginx/nginx.conf.new nginx/nginx.conf
+    head -n $((UL_LINE_ABS-1)) nginx/servers/main.conf > nginx/servers/main.conf.new
+    echo "                $STATUS_ENDPOINT" >> nginx/servers/main.conf.new
+    tail -n +$UL_LINE_ABS nginx/servers/main.conf >> nginx/servers/main.conf.new
+    mv nginx/servers/main.conf.new nginx/servers/main.conf
   else
-    echo "⚠️ Could not find closing </ul> for 'Per-Application Status Endpoints' in nginx/nginx.conf"
+    echo "⚠️ Could not find closing </ul> for 'Per-Application Status Endpoints' in nginx/servers/main.conf"
   fi
 else
-  echo "⚠️ Could not find 'Per-Application Status Endpoints' in nginx/nginx.conf"
+  echo "⚠️ Could not find 'Per-Application Status Endpoints' in nginx/servers/main.conf"
 fi
 
 # Add to port forwarding list
 PORT_FORWARD="<li><strong>$PORT → $TARGET_PORT</strong>: $APP_NAME_CAP</li>"
 
 # Find the section containing "Port Forwarding" and add our entry before </ul>
-SECTION_START=$(grep -n "Port Forwarding" nginx/nginx.conf | cut -d: -f1)
+SECTION_START=$(grep -n "Port Forwarding" nginx/servers/main.conf | cut -d: -f1)
 if [ -n "$SECTION_START" ]; then
   # Find the closing </ul> tag after the section start
-  UL_LINE=$(tail -n +$SECTION_START nginx/nginx.conf | grep -n "</ul>" | head -1 | cut -d: -f1)
+  UL_LINE=$(tail -n +$SECTION_START nginx/servers/main.conf | grep -n "</ul>" | head -1 | cut -d: -f1)
   if [ -n "$UL_LINE" ]; then
     UL_LINE_ABS=$((SECTION_START + UL_LINE - 1))
     
     # Create modified file
-    head -n $((UL_LINE_ABS-1)) nginx/nginx.conf > nginx/nginx.conf.new
-    echo "                $PORT_FORWARD" >> nginx/nginx.conf.new
-    tail -n +$UL_LINE_ABS nginx/nginx.conf >> nginx/nginx.conf.new
-    mv nginx/nginx.conf.new nginx/nginx.conf
+    head -n $((UL_LINE_ABS-1)) nginx/servers/main.conf > nginx/servers/main.conf.new
+    echo "                $PORT_FORWARD" >> nginx/servers/main.conf.new
+    tail -n +$UL_LINE_ABS nginx/servers/main.conf >> nginx/servers/main.conf.new
+    mv nginx/servers/main.conf.new nginx/servers/main.conf
   else
-    echo "⚠️ Could not find closing </ul> for 'Port Forwarding' in nginx/nginx.conf"
+    echo "⚠️ Could not find closing </ul> for 'Port Forwarding' in nginx/servers/main.conf"
   fi
 else
-  echo "⚠️ Could not find 'Port Forwarding' in nginx/nginx.conf"
+  echo "⚠️ Could not find 'Port Forwarding' in nginx/servers/main.conf"
 fi
 
 # Update default route string in status page
-perl -pi -e "s/Rust\\)';/Rust) $PORT -> $TARGET_PORT ($APP_NAME_CAP)';/" nginx/nginx.conf
+perl -pi -e "s/Rust\\)';/Rust) $PORT -> $TARGET_PORT ($APP_NAME_CAP)';/" nginx/servers/main.conf
 
 echo "✅ Done! Configuration files have been updated." 

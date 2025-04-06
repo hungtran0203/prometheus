@@ -16,26 +16,14 @@ APP_NAME_CAP=$(echo "$APP_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,
 
 echo "🔧 Removing monitoring for $APP_NAME_CAP on port $PORT"
 
-# 1. Remove the server block from nginx.conf
+# 1. Remove the server block from servers directory
 echo "🔧 Removing Nginx configuration..."
-# Find the start and end of the server block for this app
-START_LINE=$(grep -n "# Port forwarding for $APP_NAME app" nginx/nginx.conf | cut -d: -f1)
-if [ -z "$START_LINE" ]; then
-  echo "⚠️ Server block for $APP_NAME not found in nginx/nginx.conf"
+SERVER_FILE="nginx/servers/${APP_NAME}.conf"
+if [ -f "$SERVER_FILE" ]; then
+  rm "$SERVER_FILE"
+  echo "✅ Server configuration removed: $SERVER_FILE"
 else
-  # Find the end of this server block (the next closing brace)
-  END_LINE=$(tail -n +$START_LINE nginx/nginx.conf | grep -n "^}" | head -1 | cut -d: -f1)
-  if [ -n "$END_LINE" ]; then
-    END_LINE=$((START_LINE + END_LINE))
-    
-    # Create new file without this server block
-    head -n $((START_LINE-1)) nginx/nginx.conf > nginx/nginx.conf.new
-    tail -n +$((END_LINE+1)) nginx/nginx.conf >> nginx/nginx.conf.new
-    mv nginx/nginx.conf.new nginx/nginx.conf
-    echo "✅ Server block removed from nginx/nginx.conf"
-  else
-    echo "⚠️ Could not find end of server block for $APP_NAME in nginx/nginx.conf"
-  fi
+  echo "⚠️ Server file for $APP_NAME not found at $SERVER_FILE"
 fi
 
 # 2. Remove port mapping from main docker-compose.yml
@@ -96,15 +84,15 @@ fi
 # 6. Update the status page - remove from status endpoints list
 echo "🔧 Updating status page..."
 # Remove the app from the status endpoints list
-grep -v "<li><a href=\"/${APP_NAME}_status\">/${APP_NAME}_status</a>" nginx/nginx.conf > nginx/nginx.conf.new
-mv nginx/nginx.conf.new nginx/nginx.conf
+grep -v "<li><a href=\"/${APP_NAME}_status\">/${APP_NAME}_status</a>" nginx/servers/main.conf > nginx/servers/main.conf.new
+mv nginx/servers/main.conf.new nginx/servers/main.conf
 
 # Remove from port forwarding list
-grep -v "<li><strong>$PORT.*: $APP_NAME_CAP</li>" nginx/nginx.conf > nginx/nginx.conf.new
-mv nginx/nginx.conf.new nginx/nginx.conf
+grep -v "<li><strong>$PORT.*: $APP_NAME_CAP</li>" nginx/servers/main.conf > nginx/servers/main.conf.new
+mv nginx/servers/main.conf.new nginx/servers/main.conf
 
 # Update default route string in status page
-sed -i.bak "s/ $PORT -> .* ($APP_NAME_CAP)//" nginx/nginx.conf
-rm -f nginx/nginx.conf.bak
+sed -i.bak "s/ $PORT -> .* ($APP_NAME_CAP)//" nginx/servers/main.conf
+rm -f nginx/servers/main.conf.bak
 
 echo "✅ Done! Configuration files have been updated." 

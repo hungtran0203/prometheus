@@ -55,9 +55,9 @@ services:
       - "8686:80"      # Main metrics port
       - "4000:4000"    # bb_client port
       - "3000:3000"    # Node.js port
-      - "8000:8000"    # Rust port
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/servers:/etc/nginx/servers
       - ./nginx/logs:/var/log/nginx
     networks:
       - monitoring_network
