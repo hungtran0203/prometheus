@@ -49,6 +49,19 @@ scrape_configs:
           app: 'nodejs'
           port: '3000'
 
+
+
+
+  # Specific metrics for the bb_client application
+  - job_name: "bb_client_proxy"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["bb_client-exporter:9113"]
+        labels:
+          service: "bb_client-proxy"
+          environment: "development"
+          app: "bb_client"
+          port: "4000"
   # Specific metrics for the Rust application
   - job_name: 'rust_proxy'
     scrape_interval: 5s

@@ -1,0 +1,49 @@
+version: '3'
+
+services:
+  # Node.js app metrics exporter
+  nodejs-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nodejs-exporter
+    ports:
+      - "9114:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://dev-proxy:3000/nodejs_status"
+      - "--prometheus.const-label=app=nodejs"
+      - "--prometheus.const-label=port=3000"
+    networks:
+      - monitoring_network
+    restart: always
+
+  # Rust app metrics exporter
+  rust-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: rust-exporter
+    ports:
+      - "9117:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://dev-proxy:8000/rust_status"
+      - "--prometheus.const-label=app=rust"
+      - "--prometheus.const-label=port=8000"
+    networks:
+      - monitoring_network
+    restart: always
+
+  # bb_client app metrics exporter
+  bb_client-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: bb_client-exporter
+    ports:
+      - "9400:9113"  # Fixed port - was too high (94000)
+    command:
+      - "--nginx.scrape-uri=http://dev-proxy:4000/bb_client_status"
+      - "--prometheus.const-label=app=bb_client"
+      - "--prometheus.const-label=port=4000"
+    networks:
+      - monitoring_network
+    restart: always
+
+networks:
+  monitoring_network:
+    external: true
+    name: prometheus_monitoring_network 
