@@ -14,3 +14,4 @@
 172.21.0.1 - - [04/Apr/2025:20:34:16 +0000] "GET / HTTP/1.1" 200 160 "-" "curl/8.5.0"
 172.21.0.1 - - [04/Apr/2025:20:38:48 +0000] "GET / HTTP/1.1" 200 160 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
 172.21.0.1 - - [04/Apr/2025:20:38:49 +0000] "GET /favicon.ico HTTP/1.1" 200 160 "http://localhost:8686/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+172.22.0.1 - - [06/Apr/2025:07:47:47 +0000] "GET /favicon.ico HTTP/1.1" 200 91 "http://localhost:8686/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"

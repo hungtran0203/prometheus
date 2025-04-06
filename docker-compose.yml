@@ -53,7 +53,6 @@ services:
     container_name: dev-proxy
     ports:
       - "8686:80"      # Main metrics port
-      - "4000:4000"    # bb_client port
       - "3000:3000"    # Node.js port
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf

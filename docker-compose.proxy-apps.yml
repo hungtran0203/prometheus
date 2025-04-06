@@ -41,7 +41,174 @@ services:
       - monitoring_network
     restart: always
 
+
+  # rust app metrics exporter
+  rust-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: rust-exporter
+    ports:
+      - "98090:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8090/rust_status"
+      - "--prometheus.const-label=app=rust"
+      - "--prometheus.const-label=port=8090"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
+
+  # rust app metrics exporter
+  rust-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: rust-exporter
+    ports:
+      - "98090:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8090/rust_status"
+      - "--prometheus.const-label=app=rust"
+      - "--prometheus.const-label=port=8090"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
+
+  # rust app metrics exporter
+  rust-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: rust-exporter
+    ports:
+      - "98090:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8090/rust_status"
+      - "--prometheus.const-label=app=rust"
+      - "--prometheus.const-label=port=8090"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
+
+  # rust app metrics exporter
+  rust-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: rust-exporter
+    ports:
+      - "98090:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8090/rust_status"
+      - "--prometheus.const-label=app=rust"
+      - "--prometheus.const-label=port=8090"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
+
+  # testapp app metrics exporter
+  testapp-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: testapp-exporter
+    ports:
+      - "98091:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8091/testapp_status"
+      - "--prometheus.const-label=app=testapp"
+      - "--prometheus.const-label=port=8091"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
+
+  # testapp app metrics exporter
+  testapp-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: testapp-exporter
+    ports:
+      - "98091:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8091/testapp_status"
+      - "--prometheus.const-label=app=testapp"
+      - "--prometheus.const-label=port=8091"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
+
+  # demoapp app metrics exporter
+  demoapp-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: demoapp-exporter
+    ports:
+      - "98092:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8092/demoapp_status"
+      - "--prometheus.const-label=app=demoapp"
+      - "--prometheus.const-label=port=8092"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
+
+  # demoapp app metrics exporter
+  demoapp-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: demoapp-exporter
+    ports:
+      - "98092:9113"  # Note: externally exposed on a different port
+    command:
+      - "--nginx.scrape-uri=http://nginx:8092/demoapp_status"
+      - "--prometheus.const-label=app=demoapp"
+      - "--prometheus.const-label=port=8092"
+    networks:
+      - monitoring_network
+    depends_on:
+      - nginx
+    restart: always
 networks:
   monitoring_network:
     external: true
     name: prometheus_monitoring_network 
+
+  # testapp2 app metrics exporter
+  testapp2-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: testapp2-exporter
+    restart: unless-stopped
+    depends_on:
+      - nginx
+    command:
+      - "--nginx.scrape-uri=http://nginx:8093/testapp2_status"
+      - "--prometheus.const-label=app=testapp2"
+    expose:
+      - 9113
+
+  # finaltest app metrics exporter
+  finaltest-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: finaltest-exporter
+    restart: unless-stopped
+    depends_on:
+      - nginx
+    command:
+      - "--nginx.scrape-uri=http://nginx:8094/finaltest_status"
+      - "--prometheus.const-label=app=finaltest"
+    expose:
+      - 9113
+
+  # bb_server app metrics exporter
+  bb_server-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: bb_server-exporter
+    restart: unless-stopped
+    depends_on:
+      - nginx
+    command:
+      - "--nginx.scrape-uri=http://nginx:3000/bb_server_status"
+      - "--prometheus.const-label=app=bb_server"
+    expose:
+      - 9113

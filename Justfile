@@ -30,12 +30,14 @@ list-apps:
     
     # First check if required files exist
     NGINX_CONF="nginx/nginx.conf"
+    SERVERS_DIR="nginx/servers"
     DOCKER_COMPOSE="docker-compose.yml"
     PROMETHEUS_YML="prometheus/prometheus.yml"
     GRAFANA_DASHBOARDS="grafana/provisioning/dashboards"
     
     missing_files=()
     [[ ! -f "$NGINX_CONF" ]] && missing_files+=("$NGINX_CONF")
+    [[ ! -d "$SERVERS_DIR" ]] && missing_files+=("$SERVERS_DIR")
     [[ ! -f "$DOCKER_COMPOSE" ]] && missing_files+=("$DOCKER_COMPOSE")
     [[ ! -f "$PROMETHEUS_YML" ]] && missing_files+=("$PROMETHEUS_YML")
     [[ ! -d "$GRAFANA_DASHBOARDS" ]] && missing_files+=("$GRAFANA_DASHBOARDS")
@@ -58,32 +60,32 @@ list-apps:
         fi
     }
     
-    # Check for app configurations in nginx.conf
+    # Check for app configurations in nginx/servers directory
     echo "📊 Apps in Nginx configuration:"
     nginx_apps_found=0
-    if [[ -f "$NGINX_CONF" ]]; then
-        server_blocks=$(grep -n "# Port forwarding for .* app" "$NGINX_CONF" 2>/dev/null || echo "")
-        if [[ -n "$server_blocks" ]]; then
-            while IFS= read -r line; do
-                if [[ -n "$line" ]]; then
-                    # Get simple info
-                    app_line=$(echo "$line" | cut -d':' -f2-)
-                    app_name=$(echo "$app_line" | sed 's/# Port forwarding for \(.*\) app.*/\1/')
-                    # Get port info from the server block that follows
-                    line_num=$(echo "$line" | cut -d':' -f1)
-                    port=$(grep -A 2 "listen" "$NGINX_CONF" | head -1 | grep -o '[0-9]*' | head -1)
-                    # Find target port
-                    target_port=$(grep -A 20 "proxy_pass" "$NGINX_CONF" | head -1 | grep -o '[0-9]*' | head -1)
-                    
-                    if [[ -n "$app_name" && -n "$port" ]]; then
-                        echo "  - $app_name (Port: $port)"
-                        nginx_apps_found=1
-                    fi
+    if [[ -d "$SERVERS_DIR" ]]; then
+        for server_file in "$SERVERS_DIR"/*.conf; do
+            # Skip the main.conf file
+            if [[ "$(basename "$server_file")" == "main.conf" ]]; then
+                continue
+            fi
+            
+            if [[ -f "$server_file" ]]; then
+                # Get app name from the conf file name
+                app_name=$(basename "$server_file" .conf)
+                # Get port from the file
+                port=$(grep "listen" "$server_file" | head -1 | grep -o '[0-9]*' | head -1)
+                # Find target port
+                target_port=$(grep "proxy_pass" "$server_file" | head -1 | grep -o '[0-9]*' | head -1)
+                
+                if [[ -n "$app_name" && -n "$port" ]]; then
+                    echo "  - $app_name (Port: $port → $target_port)"
+                    nginx_apps_found=1
                 fi
-            done <<< "$server_blocks"
-        fi
+            fi
+        done
     else
-        echo "  ⚠️ Nginx configuration file not found."
+        echo "  ⚠️ Nginx servers directory not found."
     fi
     check_apps_found $nginx_apps_found "applications"
     
