@@ -3,13 +3,10 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  # Core services
   - job_name: 'prometheus'
     static_configs:
       - targets: ['prometheus:9090']
-
-  - job_name: 'postgres-exporter'
-    static_configs:
-      - targets: ['postgres-exporter:9187']
 
   - job_name: 'grafana'
     static_configs:
@@ -18,17 +15,13 @@ scrape_configs:
   - job_name: 'node_exporter_mac'
     static_configs:
       - targets: ['host.docker.internal:9100']
-      
-  - job_name: 'nodejs_app'
-    metrics_path: '/metrics'
-    scrape_interval: 10s
+  
+  # Database monitoring
+  - job_name: 'postgres-exporter'
     static_configs:
-      - targets: ['host.docker.internal:3000']
-        labels:
-          service: 'nodejs-app'
-          environment: 'development'
-          
-  # General Nginx metrics for the proxy server overall
+      - targets: ['postgres-exporter:9187']
+      
+  # General Nginx metrics
   - job_name: 'nginx'
     scrape_interval: 5s
     static_configs:
@@ -37,77 +30,10 @@ scrape_configs:
           service: 'dev-proxy'
           environment: 'development'
           app: 'general'
-
-  # Specific metrics for the Node.js application
-  - job_name: 'nodejs_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['nodejs-exporter:9113']
-        labels:
-          service: 'nodejs-proxy'
-          environment: 'development'
-          app: 'nodejs'
-          port: '3000'
-
-  # Specific metrics for the bb_client application
-  - job_name: 'bb_client_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['bb_client-exporter:9113']
-        labels:
-          service: 'bb_client-proxy'
-          environment: 'development'
-          app: 'bb_client'
-          port: '4000'
-
-  # Specific metrics for the rust application
-  - job_name: 'rust_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['rust-exporter:9113']
-        labels:
-          service: 'rust-proxy'
-          environment: 'development'
-          app: 'rust'
-          port: '8090'
-
-  # Specific metrics for the testapp application
-  - job_name: 'testapp_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['testapp-exporter:9113']
-        labels:
-          service: 'testapp-proxy'
-          environment: 'development'
-          app: 'testapp'
-          port: '8091' 
-  # Specific metrics for the testapp2 application
-  - job_name: 'testapp2_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['testapp2-exporter:9113']
-        labels:
-          service: 'testapp2-proxy'
-          environment: 'development'
-          app: 'testapp2'
-          port: '8093'
-  # Specific metrics for the finaltest application
-  - job_name: 'finaltest_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['finaltest-exporter:9113']
-        labels:
-          service: 'finaltest-proxy'
-          environment: 'development'
-          app: 'finaltest'
-          port: '8094'
-  # Specific metrics for the bb_server application
-  - job_name: 'bb_server_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['bb_server-exporter:9113']
-        labels:
-          service: 'bb_server-proxy'
-          environment: 'development'
-          app: 'bb_server'
-          port: '3000'
+          
+  # Include application-specific configurations
+  - job_name: 'file_sd_apps'
+    file_sd_configs:
+      - files:
+        - /etc/prometheus/conf.d/*.yml
+        refresh_interval: 5s

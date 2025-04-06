@@ -1,0 +1,13 @@
+- targets: ['nodejs-exporter:9113']
+  labels:
+    job: 'nodejs_proxy'
+    service: 'nodejs-proxy'
+    environment: 'development'
+    app: 'nodejs'
+    port: '3000'
+
+- targets: ['host.docker.internal:3000']
+  labels:
+    job: 'nodejs_app'
+    service: 'nodejs-app'
+    environment: 'development' 

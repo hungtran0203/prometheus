@@ -1,0 +1,14 @@
+name: app-exporters
+
+# This is the main docker-compose file for all app exporters
+# It imports all individual app configurations from docker-compose-app/ directory
+
+# Import all app configurations
+include:
+  - docker-compose-app/nodejs.yml
+
+# Common networks configuration
+networks:
+  monitoring_network:
+    external: true
+    name: prometheus_monitoring_network

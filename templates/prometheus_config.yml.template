@@ -1,0 +1,7 @@
+- targets: ['{{APP_NAME}}-exporter:9113']
+  labels:
+    job: '{{APP_NAME}}_proxy'
+    service: '{{APP_NAME}}-proxy'
+    environment: 'development'
+    app: '{{APP_NAME}}'
+    port: '{{PORT}}' 

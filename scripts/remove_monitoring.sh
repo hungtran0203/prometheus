@@ -31,44 +31,31 @@ echo "🔧 Removing port mapping from docker-compose.yml..."
 grep -v "\"$PORT:$PORT\".*# $APP_NAME port" docker-compose.yml > docker-compose.yml.new
 mv docker-compose.yml.new docker-compose.yml
 
-# 3. Remove the exporter service from docker-compose.proxy-apps.yml
-echo "🔧 Removing exporter service from docker-compose.proxy-apps.yml..."
-if [ -f docker-compose.proxy-apps.yml ]; then
-  # Create a temporary file without the app exporter
-  grep -v -A 12 "# $APP_NAME app metrics exporter" docker-compose.proxy-apps.yml > docker-compose.proxy-apps.yml.tmp
-  mv docker-compose.proxy-apps.yml.tmp docker-compose.proxy-apps.yml
-  echo "✅ Exporter service removed from docker-compose.proxy-apps.yml"
+# 3. Remove the exporter service configuration file
+echo "🔧 Removing exporter service configuration..."
+EXPORTER_FILE="docker-compose-app/${APP_NAME}.yml"
+if [ -f "$EXPORTER_FILE" ]; then
+  rm "$EXPORTER_FILE"
+  echo "✅ Exporter configuration removed: $EXPORTER_FILE"
+  
+  # Also update the docker-compose-app.yml file
+  if [ -f docker-compose-app.yml ]; then
+    # Update docker-compose-app.yml using the helper script
+    ./scripts/update_compose_app.sh
+    echo "✅ Updated docker-compose-app.yml"
+  fi
 else
-  echo "⚠️ docker-compose.proxy-apps.yml not found"
+  echo "⚠️ Exporter configuration for $APP_NAME not found at $EXPORTER_FILE"
 fi
 
-# 4. Remove the job from prometheus.yml
+# 4. Remove the job from prometheus conf.d directory
 echo "🔧 Removing Prometheus job configuration..."
-# Find the start of the job config for this app
-START_LINE=$(grep -n "# Specific metrics for the $APP_NAME application" prometheus/prometheus.yml | cut -d: -f1)
-if [ -z "$START_LINE" ]; then
-  echo "⚠️ Job configuration for $APP_NAME not found in prometheus/prometheus.yml"
+CONFIG_FILE="prometheus/conf.d/${APP_NAME}.yml"
+if [ -f "$CONFIG_FILE" ]; then
+  rm "$CONFIG_FILE"
+  echo "✅ Prometheus configuration removed: $CONFIG_FILE"
 else
-  # Find the end of this job config (the next job or the end of the file)
-  END_LINE=$(tail -n +$START_LINE prometheus/prometheus.yml | grep -n "# Specific metrics" | head -1 | cut -d: -f1)
-  if [ -n "$END_LINE" ]; then
-    END_LINE=$((START_LINE + END_LINE - 2))
-  else
-    # If no next job, look for the end of the scrape_configs
-    END_LINE=$(tail -n +$START_LINE prometheus/prometheus.yml | grep -n "^  # Network monitoring" | head -1 | cut -d: -f1)
-    if [ -n "$END_LINE" ]; then
-      END_LINE=$((START_LINE + END_LINE - 2))
-    else
-      # If still not found, go to the end of the file
-      END_LINE=$(wc -l < prometheus/prometheus.yml)
-    fi
-  fi
-  
-  # Create new file without this job config
-  head -n $((START_LINE-1)) prometheus/prometheus.yml > prometheus/prometheus.yml.new
-  tail -n +$((END_LINE+1)) prometheus/prometheus.yml >> prometheus/prometheus.yml.new
-  mv prometheus/prometheus.yml.new prometheus/prometheus.yml
-  echo "✅ Job configuration removed from prometheus/prometheus.yml"
+  echo "⚠️ Prometheus configuration for $APP_NAME not found at $CONFIG_FILE"
 fi
 
 # 5. Remove the dashboard file

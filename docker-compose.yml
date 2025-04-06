@@ -6,6 +6,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/conf.d:/etc/prometheus/conf.d
       - prometheus_data:/prometheus
     networks:
       - monitoring_network

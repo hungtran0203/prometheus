@@ -23,151 +23,13 @@ remove-app app_name port:
 
 # List all currently monitored applications
 list-apps:
-    #!/usr/bin/env bash
-    set -eo pipefail
-    echo "🔍 Currently monitored applications:"
-    echo "======================================="
-    
-    # First check if required files exist
-    NGINX_CONF="nginx/nginx.conf"
-    SERVERS_DIR="nginx/servers"
-    DOCKER_COMPOSE="docker-compose.yml"
-    PROMETHEUS_YML="prometheus/prometheus.yml"
-    GRAFANA_DASHBOARDS="grafana/provisioning/dashboards"
-    
-    missing_files=()
-    [[ ! -f "$NGINX_CONF" ]] && missing_files+=("$NGINX_CONF")
-    [[ ! -d "$SERVERS_DIR" ]] && missing_files+=("$SERVERS_DIR")
-    [[ ! -f "$DOCKER_COMPOSE" ]] && missing_files+=("$DOCKER_COMPOSE")
-    [[ ! -f "$PROMETHEUS_YML" ]] && missing_files+=("$PROMETHEUS_YML")
-    [[ ! -d "$GRAFANA_DASHBOARDS" ]] && missing_files+=("$GRAFANA_DASHBOARDS")
-    
-    if [[ ${#missing_files[@]} -gt 0 ]]; then
-        echo "⚠️ Warning: The following files/directories are missing:"
-        for file in "${missing_files[@]}"; do
-            echo "  - $file"
-        done
-        echo "Some information may be incomplete."
-        echo
-    fi
-    
-    # Function to check if app found
-    check_apps_found() {
-        local found=$1
-        local section=$2
-        if [[ $found -eq 0 ]]; then
-            echo "  No $section found."
-        fi
-    }
-    
-    # Check for app configurations in nginx/servers directory
-    echo "📊 Apps in Nginx configuration:"
-    nginx_apps_found=0
-    if [[ -d "$SERVERS_DIR" ]]; then
-        for server_file in "$SERVERS_DIR"/*.conf; do
-            # Skip the main.conf file
-            if [[ "$(basename "$server_file")" == "main.conf" ]]; then
-                continue
-            fi
-            
-            if [[ -f "$server_file" ]]; then
-                # Get app name from the conf file name
-                app_name=$(basename "$server_file" .conf)
-                # Get port from the file
-                port=$(grep "listen" "$server_file" | head -1 | grep -o '[0-9]*' | head -1)
-                # Find target port
-                target_port=$(grep "proxy_pass" "$server_file" | head -1 | grep -o '[0-9]*' | head -1)
-                
-                if [[ -n "$app_name" && -n "$port" ]]; then
-                    echo "  - $app_name (Port: $port → $target_port)"
-                    nginx_apps_found=1
-                fi
-            fi
-        done
-    else
-        echo "  ⚠️ Nginx servers directory not found."
-    fi
-    check_apps_found $nginx_apps_found "applications"
-    
-    # Check exporters in docker-compose.yml
-    echo
-    echo "📊 Exporter services in docker-compose.yml:"
-    exporter_found=0
-    if [[ -f "$DOCKER_COMPOSE" ]]; then
-        exporter_blocks=$(grep -n "# .* app metrics exporter" "$DOCKER_COMPOSE" 2>/dev/null || echo "")
-        if [[ -n "$exporter_blocks" ]]; then
-            while IFS= read -r line; do
-                if [[ -n "$line" ]]; then
-                    exporter_line=$(echo "$line" | cut -d':' -f2-)
-                    app=$(echo "$exporter_line" | sed 's/# \(.*\) app metrics exporter/\1/')
-                    if [[ -n "$app" ]]; then
-                        echo "  - $app-exporter"
-                        exporter_found=1
-                    fi
-                fi
-            done <<< "$exporter_blocks"
-        fi
-    else
-        echo "  ⚠️ Docker Compose file not found."
-    fi
-    check_apps_found $exporter_found "exporters"
-    
-    # Check prometheus targets
-    echo
-    echo "📊 Prometheus job configurations:"
-    prometheus_jobs_found=0
-    if [[ -f "$PROMETHEUS_YML" ]]; then
-        job_blocks=$(grep -n "job_name: \".*_proxy\"" "$PROMETHEUS_YML" 2>/dev/null || echo "")
-        if [[ -n "$job_blocks" ]]; then
-            while IFS= read -r line; do
-                if [[ -n "$line" ]]; then
-                    job_line=$(echo "$line" | cut -d':' -f2-)
-                    job=$(echo "$job_line" | sed 's/.*job_name: "\(.*\)".*/\1/')
-                    if [[ -n "$job" ]]; then
-                        echo "  - $job"
-                        prometheus_jobs_found=1
-                    fi
-                fi
-            done <<< "$job_blocks"
-        fi
-    else
-        echo "  ⚠️ Prometheus configuration file not found."
-    fi
-    check_apps_found $prometheus_jobs_found "jobs"
-    
-    # Check Grafana dashboards
-    echo
-    echo "📊 Grafana dashboards:"
-    dashboard_found=0
-    if [[ -d "$GRAFANA_DASHBOARDS" ]]; then
-        for file in "$GRAFANA_DASHBOARDS"/*_app_metrics.json; do
-            if [[ -f "$file" ]]; then
-                app=$(basename "$file" | sed 's/_app_metrics.json//')
-                if [[ "$app" != "mac_system" && -n "$app" ]]; then
-                    echo "  - $app"
-                    dashboard_found=1
-                fi
-            fi
-        done
-    else
-        echo "  ⚠️ Grafana dashboards directory not found."
-    fi
-    check_apps_found $dashboard_found "dashboards"
-    
-    # Check for active containers 
-    echo
-    echo "📊 Currently running containers:"
-    docker compose ps 2>/dev/null || echo "  ⚠️ Docker Compose command failed. Is Docker running?"
-    
-    echo
-    echo "💡 To add a new app, run: just add-app app_name port target_port"
-    echo "💡 To remove an app, run: just remove-app app_name port"
+    @./scripts/list_apps.sh
 
 # Restart all services to apply changes
 restart:
     @echo "Restarting services..."
     docker compose restart
-    docker compose -f docker-compose.proxy-apps.yml restart
+    docker compose -f docker-compose-app.yml restart
 
 # Restart only Nginx to apply configuration changes
 restart-nginx:
@@ -187,14 +49,29 @@ restart-prometheus:
 # Restart only proxy app services
 restart-proxy-apps:
     @echo "Restarting proxy app services..."
-    docker compose -f docker-compose.proxy-apps.yml restart
+    docker compose -f docker-compose-app.yml restart
+
+# Update and restart all proxy app services
+update-restart-proxy-apps:
+    @echo "Updating docker-compose-app.yml and restarting all proxy app services..."
+    @./scripts/update_compose_app.sh
+    docker compose -f docker-compose-app.yml down
+    docker compose -f docker-compose-app.yml up -d
+
+# Recreate all app exporter configurations using the template
+recreate-app-exporters:
+    @./scripts/recreate_app_exporters.sh
+
+# Recreate all configurations from templates
+recreate-all-configs:
+    @./scripts/recreate_all_configs.sh
 
 # Check the status of all services
 status:
     @echo "Checking service status..."
     docker compose ps
     @echo "\nProxy app services:"
-    docker compose -f docker-compose.proxy-apps.yml ps
+    docker compose -f docker-compose-app.yml ps
 
 # View logs for a specific service
 # Usage: just logs service [tail_lines]
@@ -233,10 +110,15 @@ show-metrics app_name:
 start:
     @echo "Starting all services..."
     docker compose up -d
-    docker compose -f docker-compose.proxy-apps.yml up -d
+    docker compose -f docker-compose-app.yml up -d
 
 # Stop all services
 stop:
     @echo "Stopping all services..."
     docker compose down
-    docker compose -f docker-compose.proxy-apps.yml down
+    docker compose -f docker-compose-app.yml down
+
+# Update the docker-compose-app.yml file
+update-compose-app:
+    @echo "Updating docker-compose-app.yml..."
+    @./scripts/update_compose_app.sh

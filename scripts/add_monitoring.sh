@@ -17,7 +17,16 @@ echo "🔧 Setting up monitoring for $APP_NAME_CAPS on port $PORT (forwarding to
 
 # 1. Create Nginx configuration file for the app
 echo "🔧 Adding Nginx configuration..."
-cat > nginx/servers/$APP_NAME.conf << EOF
+if [ -f "templates/nginx_server.conf.template" ]; then
+    # Create nginx server configuration from template
+    cat templates/nginx_server.conf.template | \
+        sed "s/{{APP_NAME}}/${APP_NAME}/g" | \
+        sed "s/{{PORT}}/${PORT}/g" | \
+        sed "s/{{FORWARD_PORT}}/${FORWARD_PORT}/g" > nginx/servers/${APP_NAME}.conf
+    echo "✅ Created Nginx server configuration from template for ${APP_NAME}"
+else
+    # Fallback to direct creation if template doesn't exist
+    cat > nginx/servers/$APP_NAME.conf << EOF
 # Port forwarding for $APP_NAME app ($PORT -> $FORWARD_PORT)
 server {
     listen $PORT;
@@ -43,6 +52,8 @@ server {
     }
 }
 EOF
+    echo "✅ Created Nginx server configuration for ${APP_NAME} (without template)"
+fi
 
 # 2. Update docker-compose.yml with the port mapping
 echo "🔧 Updating docker-compose.yml with port mapping..."
@@ -57,107 +68,100 @@ if [ -n "$PORT_LINE" ]; then
     fi
 fi
 
-# 3. Add the exporter service to docker-compose.proxy-apps.yml
-echo "🔧 Adding exporter service to docker-compose.proxy-apps.yml..."
+# 3. Create a dedicated docker-compose file for the app exporter
+echo "🔧 Creating exporter service configuration..."
 
-# Check if the exporter service already exists
-if ! grep -q "${APP_NAME}-exporter:" docker-compose.proxy-apps.yml; then
-    # Add the exporter service to the docker-compose.proxy-apps.yml file
-    cat >> docker-compose.proxy-apps.yml << EOF
+# Create docker-compose-app directory if it doesn't exist
+mkdir -p docker-compose-app
 
-  # $APP_NAME app metrics exporter
-  $APP_NAME-exporter:
+# Use the template file to create the individual docker-compose file for this app
+if [ -f "templates/app_exporter.yml.template" ]; then
+    # Create the app exporter config from template
+    cat templates/app_exporter.yml.template | \
+        sed "s/{{APP_NAME}}/${APP_NAME}/g" | \
+        sed "s/{{PORT}}/${PORT}/g" > docker-compose-app/${APP_NAME}.yml
+    echo "✅ Created exporter service from template for ${APP_NAME}"
+else
+    # Fallback to direct creation if template doesn't exist
+    cat > docker-compose-app/${APP_NAME}.yml << EOF
+services:
+  ${APP_NAME}-exporter:
     image: nginx/nginx-prometheus-exporter:0.11.0
-    container_name: $APP_NAME-exporter
+    container_name: ${APP_NAME}-exporter
     restart: unless-stopped
-    depends_on:
-      - nginx
+    ports:
+      - "9${PORT:0:3}:9113"
     command:
-      - "--nginx.scrape-uri=http://nginx:$PORT/${APP_NAME}_status"
+      - "--nginx.scrape-uri=http://dev-proxy:$PORT/${APP_NAME}_status"
       - "--prometheus.const-label=app=$APP_NAME"
-    expose:
-      - 9113
+      - "--prometheus.const-label=port=$PORT"
+    networks:
+      - monitoring_network
 EOF
+    echo "✅ Created exporter service configuration for ${APP_NAME} (without template)"
 fi
 
-# 4. Update prometheus.yml with the new job
+# Check if the app is already included in the main docker-compose-app.yml
+if ! grep -q "docker-compose-app/${APP_NAME}.yml" docker-compose-app.yml; then
+    # Update the docker-compose-app.yml file using the helper script
+    ./scripts/update_compose_app.sh
+fi
+
+echo "✅ Created exporter service configuration for ${APP_NAME}"
+
+# 4. Create or update Prometheus config in conf.d directory
 echo "🔧 Updating Prometheus configuration..."
 
-# Create the new job config (use consistent single quotes)
-cat > prometheus_config.tmp << EOF
-  # Specific metrics for the $APP_NAME application
-  - job_name: '${APP_NAME}_proxy'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['$APP_NAME-exporter:9113']
-        labels:
-          service: '${APP_NAME}-proxy'
-          environment: 'development'
-          app: '$APP_NAME'
-          port: '$PORT'
-EOF
-
-# Check if a job for this app already exists
-JOB_EXISTS=$(grep -n "job_name: '${APP_NAME}_proxy'" prometheus/prometheus.yml | cut -d: -f1)
-if [ -n "$JOB_EXISTS" ]; then
-  echo "⚠️ Job for ${APP_NAME} already exists. Updating existing job..."
-  
-  # Find the lines containing the start of the job's comment and the job_name line
-  JOB_COMMENT=$(grep -n "# Specific metrics for the ${APP_NAME} application" prometheus/prometheus.yml | cut -d: -f1)
-  JOB_NAME=$(grep -n "job_name: '${APP_NAME}_proxy'" prometheus/prometheus.yml | cut -d: -f1)
-  
-  # Use the comment line if it exists, otherwise use the job_name line
-  if [ -n "$JOB_COMMENT" ]; then
-    JOB_START=$JOB_COMMENT
-  else
-    JOB_START=$JOB_NAME
-  fi
-  
-  # Find the start of the next job (or end of file if this is the last job)
-  NEXT_JOB=$(tail -n +$((JOB_START+1)) prometheus/prometheus.yml | grep -n "job_name:" | head -1 | cut -d: -f1)
-  if [ -n "$NEXT_JOB" ]; then
-    # If there's a next job, calculate its absolute line number
-    END_LINE=$((JOB_START + NEXT_JOB))
-    # Get the line before the next job_name line (which should be a comment line or whitespace)
-    END_LINE=$((END_LINE - 1))
-  else
-    # If no next job, use end of file
-    END_LINE=$(wc -l < prometheus/prometheus.yml)
-  fi
-  
-  # Replace the existing job with the new one using a cleaner approach
-  # Create a new file combining the parts
-  head -n $((JOB_START-1)) prometheus/prometheus.yml > prometheus/prometheus.yml.new
-  cat prometheus_config.tmp >> prometheus/prometheus.yml.new
-  tail -n +$((END_LINE+1)) prometheus/prometheus.yml >> prometheus/prometheus.yml.new
-  mv prometheus/prometheus.yml.new prometheus/prometheus.yml
-  
+if [ -f "templates/prometheus_config.yml.template" ]; then
+    # Create Prometheus configuration from template
+    cat templates/prometheus_config.yml.template | \
+        sed "s/{{APP_NAME}}/${APP_NAME}/g" | \
+        sed "s/{{PORT}}/${PORT}/g" > prometheus/conf.d/${APP_NAME}.yml
+    echo "✅ Created Prometheus configuration from template for ${APP_NAME}"
 else
-  # Job doesn't exist, append it to the end of the file
-  # First ensure the file ends with a newline
-  tail -c1 prometheus/prometheus.yml | read -r _ || echo "" >> prometheus/prometheus.yml
-  
-  # Then append the new configuration
-  cat prometheus_config.tmp >> prometheus/prometheus.yml
-  echo "✅ Added new job '${APP_NAME}_proxy' to Prometheus configuration."
+    # Create the config file in conf.d (fallback)
+    cat > prometheus/conf.d/${APP_NAME}.yml << EOF
+- targets: ['${APP_NAME}-exporter:9113']
+  labels:
+    job: '${APP_NAME}_proxy'
+    service: '${APP_NAME}-proxy'
+    environment: 'development'
+    app: '${APP_NAME}'
+    port: '${PORT}'
+EOF
+    echo "✅ Created Prometheus configuration file for ${APP_NAME} (without template)"
 fi
 
-rm -f prometheus_config.tmp
-
-# 5. Create a dashboard from template (using nodejs_app_metrics.json as a template)
+# 5. Create a dashboard from template
 echo "🔧 Creating Grafana dashboard..."
 
-# Create the dashboard from the template
-cp grafana/provisioning/dashboards/nodejs_app_metrics.json grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
+if [ -f "templates/grafana_dashboard.json.template" ]; then
+    # Create a new UID for the dashboard
+    NEW_UID="${APP_NAME}-$(date +%s | shasum | head -c 8)"
+    
+    # Create dashboard from template
+    cat templates/grafana_dashboard.json.template | \
+        sed "s/{{APP_NAME}}/${APP_NAME}/g" | \
+        sed "s/{{APP_NAME_CAPS}}/${APP_NAME_CAPS}/g" | \
+        sed "s/{{APP_UID}}/${NEW_UID}/g" > grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
+    
+    echo "✅ Created Grafana dashboard from template for ${APP_NAME_CAPS}"
+else
+    # Fallback to copying and modifying an existing dashboard
+    # Create the dashboard from the template
+    cp grafana/provisioning/dashboards/nodejs_app_metrics.json grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
 
-# Update the dashboard with the app name
-perl -i -pe "s/Node.js/${APP_NAME_CAPS}/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
-perl -i -pe "s/nodejs/${APP_NAME}/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
+    # Update the dashboard with the app name
+    perl -i -pe "s/Node.js/${APP_NAME_CAPS}/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
+    perl -i -pe "s/nodejs/${APP_NAME}/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
 
-# Update the dashboard ID and UID to avoid conflicts
-NEW_UID="${APP_NAME}-$(date +%s | shasum | head -c 8)"
-perl -i -pe "s/\"uid\":\s*\"[^\"]*\"/\"uid\": \"$NEW_UID\"/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
-perl -i -pe "s/\"id\":\s*\d+/\"id\": null/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
+    # Update the dashboard ID and UID to avoid conflicts
+    NEW_UID="${APP_NAME}-$(date +%s | shasum | head -c 8)"
+    perl -i -pe "s/\"uid\":\s*\"[^\"]*\"/\"uid\": \"$NEW_UID\"/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
+    perl -i -pe "s/\"id\":\s*\d+/\"id\": null/g" grafana/provisioning/dashboards/${APP_NAME}_app_metrics.json
+    
+    echo "✅ Created Grafana dashboard for ${APP_NAME_CAPS} (without template)"
+fi
 
 echo "✅ Monitoring has been set up for $APP_NAME_CAPS"
 echo "🔍 Grafana dashboard will be available at: http://localhost:3000/d/$NEW_UID"

@@ -1,0 +1,13 @@
+services:
+  {{APP_NAME}}-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: {{APP_NAME}}-exporter
+    restart: unless-stopped
+    ports:
+      - "9{{PORT:0:3}}:9113"
+    command:
+      - "--nginx.scrape-uri=http://dev-proxy:{{PORT}}/{{APP_NAME}}_status"
+      - "--prometheus.const-label=app={{APP_NAME}}"
+      - "--prometheus.const-label=port={{PORT}}"
+    networks:
+      - monitoring_network 
