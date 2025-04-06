@@ -1,0 +1,13 @@
+services:
+  bb_server-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: bb_server-exporter
+    restart: unless-stopped
+    ports:
+      - "43000:9113"
+    command:
+      - "--nginx.scrape-uri=http://dev-proxy:3000/bb_server_status"
+      - "--prometheus.const-labels=app=bb_server"
+      - "--prometheus.const-labels=port=3000"
+    networks:
+      - monitoring_network 

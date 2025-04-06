@@ -1,0 +1,7 @@
+- targets: ['bb_server-exporter:9113']
+  labels:
+    job: 'bb_server_proxy'
+    service: 'bb_server-proxy'
+    environment: 'development'
+    app: 'bb_server'
+    port: '3000' 

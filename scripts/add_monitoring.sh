@@ -90,7 +90,7 @@ services:
     container_name: ${APP_NAME}-exporter
     restart: unless-stopped
     ports:
-      - "9${PORT:0:3}:9113"
+      - "4${PORT}:9113"
     command:
       - "--nginx.scrape-uri=http://dev-proxy:$PORT/${APP_NAME}_status"
       - "--prometheus.const-label=app=$APP_NAME"

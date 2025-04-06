@@ -34,6 +34,37 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     depends_on:
       - prometheus
+      - loki
+    restart: always
+
+  # Loki for log storage
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml
+      - loki_data:/loki
+    networks:
+      - monitoring_network
+    command: -config.file=/etc/loki/config.yml
+    restart: always
+
+  # Vector for log collection and processing
+  vector:
+    image: timberio/vector:latest
+    container_name: vector
+    ports:
+      - "8888:8686" # Vector API server
+    volumes:
+      - ./vector/vector.toml:/etc/vector/vector.toml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring_network
+    depends_on:
+      - loki
+    command: --config /etc/vector/vector.toml
     restart: always
 
   postgres-exporter:
@@ -81,6 +112,7 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  loki_data:
 
 networks:
   monitoring_network:

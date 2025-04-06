@@ -1,0 +1,34 @@
+# Vector configuration for logging proxy apps
+# This file is auto-generated - do not edit manually
+
+# Source for collecting logs from Docker
+[sources.docker_source]
+type = "docker_logs"
+docker_host = "unix:///var/run/docker.sock"
+include_labels = ["com.docker.compose.service"]
+auto_partial_merge = true
+
+
+[transforms.nodejs_filter]
+type = "filter"
+inputs = ["docker_source"]
+condition = '.container_name == "nodejs-exporter" || .message contains "port=33000"'
+
+[transforms.nodejs_parser]
+type = "remap"
+inputs = ["nodejs_filter"]
+source = '''
+  .app = "nodejs"
+  .target_port = "33000"
+  .host = get_hostname() ?? "unknown"
+'''
+
+# Output logs to Loki
+[sinks.loki]
+type = "loki"
+inputs = ["docker_source"]
+endpoint = "http://loki:3100"
+encoding.codec = "json"
+labels.app = "{{ app }}"
+labels.target_port = "{{ target_port }}"
+labels.host = "{{ host }}" 

@@ -16,6 +16,18 @@ APP_NAME_CAP=$(echo "$APP_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,
 
 echo "🔧 Removing monitoring for $APP_NAME_CAP on port $PORT"
 
+# 0. Stop and remove the container immediately
+echo "🔧 Stopping and removing the exporter container if it exists..."
+CONTAINER_NAME="${APP_NAME}-exporter"
+if docker ps -a | grep -w "$CONTAINER_NAME" > /dev/null; then
+  docker stop $CONTAINER_NAME 2>/dev/null || true
+  docker rm $CONTAINER_NAME 2>/dev/null || true
+  echo "✅ Container $CONTAINER_NAME stopped and removed"
+else
+  echo "⚠️ Container $CONTAINER_NAME not found, trying with docker compose down..."
+  docker compose -f docker-compose-app.yml down --remove-orphans
+fi
+
 # 1. Remove the server block from servers directory
 echo "🔧 Removing Nginx configuration..."
 SERVER_FILE="nginx/servers/${APP_NAME}.conf"

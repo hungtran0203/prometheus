@@ -5,7 +5,7 @@ name: app-exporters
 
 # Import all app configurations
 include:
-  - docker-compose-app/nodejs.yml
+  - docker-compose-app/bb_server.yml
 
 # Common networks configuration
 networks:
