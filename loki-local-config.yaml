@@ -7,12 +7,12 @@ server:
   grpc_server_max_concurrent_streams: 1000
 
 common:
-  instance_addr: 0.0.0.0
-  path_prefix: /loki
+  instance_addr: 127.0.0.1
+  path_prefix: /tmp/loki
   storage:
     filesystem:
-      chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
+      chunks_directory: /tmp/loki/chunks
+      rules_directory: /tmp/loki/rules
   replication_factor: 1
   ring:
     kvstore:
@@ -41,7 +41,7 @@ schema_config:
 pattern_ingester:
   enabled: true
   metric_aggregation:
-    loki_address: http://loki:3100
+    loki_address: localhost:3100
 
 ruler:
   alertmanager_url: http://localhost:9093
@@ -50,7 +50,8 @@ frontend:
   encoding: protobuf
 
 querier:
-  engine: {}
+  engine:
+    enable_multi_variant_queries: true
 
 
 # By default, Loki will send anonymous, but uniquely-identifiable usage and configuration

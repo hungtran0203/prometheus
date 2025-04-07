@@ -1,34 +1,23 @@
-# Vector configuration for logging proxy apps
-# This file is auto-generated - do not edit manually
+# Vector configuration for logging with unified port
 
 # Source for collecting logs from Docker
 [sources.docker_source]
 type = "docker_logs"
 docker_host = "unix:///var/run/docker.sock"
-include_labels = ["com.docker.compose.service"]
 auto_partial_merge = true
 
-
-[transforms.nodejs_filter]
-type = "filter"
-inputs = ["docker_source"]
-condition = '.container_name == "nodejs-exporter" || .message contains "port=33000"'
-
-[transforms.nodejs_parser]
-type = "remap"
-inputs = ["nodejs_filter"]
-source = '''
-  .app = "nodejs"
-  .target_port = "33000"
-  .host = get_hostname() ?? "unknown"
-'''
+# Single unified socket source for all application logs
+[sources.unified_socket]
+type = "socket"
+mode = "tcp"
+address = "0.0.0.0:45000"
 
 # Output logs to Loki
 [sinks.loki]
 type = "loki"
-inputs = ["docker_source"]
+inputs = ["docker_source", "unified_socket"]
 endpoint = "http://loki:3100"
 encoding.codec = "json"
-labels.app = "{{ app }}"
-labels.target_port = "{{ target_port }}"
-labels.host = "{{ host }}" 
+labels.app = "app_logs"
+labels.host = "{{ host }}"
+labels.source_type = "{{ source_type }}"

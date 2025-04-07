@@ -53,10 +53,11 @@ services:
 
   # Vector for log collection and processing
   vector:
-    image: timberio/vector:latest
+    image: timberio/vector:0.28.1-alpine
     container_name: vector
     ports:
       - "8888:8686" # Vector API server
+      - "45000:45000" # Unified socket port for all app logs
     volumes:
       - ./vector/vector.toml:/etc/vector/vector.toml
       - /var/run/docker.sock:/var/run/docker.sock:ro
