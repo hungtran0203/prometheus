@@ -37,13 +37,16 @@ restart service="all":
         docker compose restart; \
         docker compose -f docker-compose-app.yml down; \
         docker compose -f docker-compose-app.yml up -d --remove-orphans; \
+        docker compose -f docker-compose-hcl.yml down; \
+        docker compose -f docker-compose-hcl.yml up -d --remove-orphans; \
     elif [ "{{service}}" = "apps" ]; then \
         echo "Restarting application services..."; \
         docker compose -f docker-compose-app.yml down; \
         docker compose -f docker-compose-app.yml up -d --remove-orphans; \
-    else \
-        echo "Restarting {{service}}..."; \
-        docker compose restart {{service}}; \
+    elif [ "{{service}}" = "hashicorp" ]; then \
+        echo "Restarting HashiCorp services..."; \
+        docker compose -f docker-compose-hcl.yml down; \
+        docker compose -f docker-compose-hcl.yml up -d --remove-orphans; \
     fi
 
 # Check the status of all services
@@ -52,6 +55,8 @@ status:
     docker compose ps
     @echo "\nProxy app services:"
     docker compose -f docker-compose-app.yml ps
+    @echo "\nHashiCorp services:"
+    docker compose -f docker-compose-hcl.yml ps
 
 # View logs for a specific service
 # Usage: just logs service [tail_lines]
@@ -66,7 +71,6 @@ logs service tail_lines="20":
 #   just open prometheus - open Prometheus UI
 #   just open logs       - open Logs Explorer in Grafana
 #   just open vector     - open Vector Logs Dashboard
-#   just open vault      - open Vault UI
 open dashboard="grafana":
     @echo "Opening {{dashboard}} dashboard..."
     @if [ "{{dashboard}}" = "grafana" ]; then \
@@ -77,11 +81,9 @@ open dashboard="grafana":
         open http://localhost:3333/explore?orgId=1&left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22%7D%5D%7D; \
     elif [ "{{dashboard}}" = "vector" ]; then \
         open http://localhost:3333/d/vector-logs-dashboard/vector-logs-dashboard; \
-    elif [ "{{dashboard}}" = "vault" ]; then \
-        open http://localhost:8200/ui; \
     else \
         echo "Unknown dashboard: {{dashboard}}"; \
-        echo "Available options: grafana, prometheus, logs, vector, vault"; \
+        echo "Available options: grafana, prometheus, logs, vector"; \
     fi
 
 # Show active targets in Prometheus
@@ -177,57 +179,3 @@ docker-logs-detailed container="all" limit="10":
             --data-urlencode 'limit={{limit}}' | \
         jq -r '.data.result[] | "Container: \(.stream.container_name)\nSource: docker_logs\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
     fi
-
-# -------------------- Vault Commands --------------------
-
-# Initialize Vault server (only required once after clean install)
-vault-init:
-    @echo "Initializing Vault server..."
-    @docker exec -it vault vault operator init > ./vault/vault-keys.txt
-    @echo "⚠️ IMPORTANT: Unseal keys and root token have been saved to ./vault/vault-keys.txt"
-    @echo "⚠️ Keep this file safe and secure!"
-    @echo "✅ Vault initialized!"
-
-# Unseal Vault server (required after each restart)
-vault-unseal:
-    @echo "Unsealing Vault server..."
-    @echo "Enter unseal key 1:"
-    @read KEY && docker exec -it vault vault operator unseal $$KEY
-    @echo "Enter unseal key 2:"
-    @read KEY && docker exec -it vault vault operator unseal $$KEY
-    @echo "Enter unseal key 3:"
-    @read KEY && docker exec -it vault vault operator unseal $$KEY
-    @echo "✅ Vault unsealed!"
-
-# Set Vault token and authenticate
-vault-login:
-    @echo "Logging into Vault..."
-    @echo "Enter root token:"
-    @read TOKEN && docker exec -it vault vault login $$TOKEN
-    @echo "✅ Logged in to Vault!"
-
-# Create a new secret (key-value pair)
-# Usage: just vault-create-secret path key value
-# Example: just vault-create-secret secret/databases/postgres username db_user
-vault-create-secret path key value:
-    @echo "Creating secret {{key}} at {{path}}..."
-    @docker exec -it vault vault kv put {{path}} {{key}}={{value}}
-    @echo "✅ Secret created!"
-
-# Get a secret
-# Usage: just vault-get-secret path
-# Example: just vault-get-secret secret/databases/postgres
-vault-get-secret path:
-    @echo "Getting secret at {{path}}..."
-    @docker exec -it vault vault kv get {{path}}
-
-# Enable the KV secrets engine v2 (only required once after init)
-vault-enable-kv:
-    @echo "Enabling KV secrets engine v2..."
-    @docker exec -it vault vault secrets enable -path=secret kv-v2
-    @echo "✅ KV secrets engine enabled!"
-
-# Check Vault status
-vault-status:
-    @echo "Checking Vault status..."
-    @docker exec -it vault vault status

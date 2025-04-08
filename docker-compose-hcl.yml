@@ -1,0 +1,73 @@
+name: hashicorp-stack
+
+services:
+  # HashiCorp Vault for secrets management
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: vault
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./vault/config:/vault/config
+      - vault_data:/vault/data
+      - vault_logs:/vault/logs
+    cap_add:
+      - IPC_LOCK
+    command: server -config=/vault/config/vault.json
+    restart: on-failure
+    networks:
+      - hashicorp_network
+      - monitoring_network
+
+  # HashiCorp Nomad for scheduling and orchestration
+  nomad:
+    image: hashicorp/nomad:1.6
+    container_name: nomad
+    ports:
+      - "4646:4646"  # HTTP API and UI
+      - "4647:4647"  # RPC
+      - "4648:4648"  # Serf WAN
+    volumes:
+      - ./nomad/config:/etc/nomad.d
+      - ./nomad/data:/opt/nomad/data
+    environment:
+      - VAULT_TOKEN=root  # This should be replaced with a proper token in production
+      - NOMAD_VAULT_TOKEN=root  # This should be replaced with a proper token in production
+    cap_add:
+      - IPC_LOCK
+    command: agent -dev -bind=0.0.0.0 -config=/etc/nomad.d/nomad.hcl
+    restart: on-failure
+    networks:
+      - hashicorp_network
+      - monitoring_network
+    depends_on:
+      - vault
+      - consul
+
+  # HashiCorp Consul for service discovery and configuration
+  consul:
+    image: hashicorp/consul:1.15
+    container_name: consul
+    ports:
+      - "8500:8500"  # HTTP API and UI
+      - "8600:8600/tcp"  # DNS interface (TCP)
+      - "8600:8600/udp"  # DNS interface (UDP)
+    volumes:
+      - ./consul/config:/consul/config
+      - ./consul/data:/consul/data
+    command: agent -dev -client=0.0.0.0
+    restart: on-failure
+    networks:
+      - hashicorp_network
+      - monitoring_network
+
+volumes:
+  vault_data:
+  vault_logs:
+
+networks:
+  hashicorp_network:
+    name: hashicorp_network
+  monitoring_network:
+    external: true
+    name: prometheus_monitoring_network 
