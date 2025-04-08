@@ -4,14 +4,13 @@
 server {
   enabled = true
   bootstrap_expect = 1
-  
-  # Enable server's Vault integration
-  vault {
-    enabled = true
-    address = "http://vault:8200"
-    create_from_role = "nomad-cluster"
-    token = ""  # Will be supplied via environment variable
-  }
+}
+
+# Vault configuration
+vault {
+  enabled = false  # Changed to false for now
+  address = "http://hc-vault:8200"
+  create_from_role = "nomad-cluster"
 }
 
 # Client settings
@@ -26,7 +25,7 @@ client {
 
 # Consul integration
 consul {
-  address = "consul:8500"
+  address = "hc-consul:8500"
   auto_advertise = true
   server_auto_join = true
   client_auto_join = true
@@ -49,7 +48,6 @@ telemetry {
   
   # Enable Consul telemetry integration
   disable_hostname = true
-  prometheus_retention_time = "24h"
 }
 
 # Bind to all interfaces to be accessible from host
