@@ -57,7 +57,7 @@ bind_addr = "0.0.0.0"
 
 # Advertise on the host's IP address
 advertise {
-  http = "localhost"
-  rpc  = "localhost"
-  serf = "localhost"
+  http = "192.168.1.104"
+  rpc  = "192.168.1.104"
+  serf = "192.168.1.104"
 } 

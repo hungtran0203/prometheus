@@ -1,1 +1,0 @@
-{"Token":"","Service":{"ID":"_nomad-client-qj2uhqfbkqempgie4lbb44stbjbubels","Service":"nomad-client","Tags":["http"],"Address":"localhost","Meta":{"external-source":"nomad"},"Port":4646,"Weights":{"Passing":1,"Warning":1},"EnableTagOverride":false,"Proxy":{"Mode":"","MeshGateway":{},"Expose":{}},"Connect":{},"PeerName":"","CreateIndex":0,"ModifyIndex":0},"Source":"remote"}

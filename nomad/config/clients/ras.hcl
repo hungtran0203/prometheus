@@ -1,11 +1,16 @@
 client {
   enabled = true
-  servers = ["http://hung.service.consul:4647"]
+  servers = ["192.168.1.104:4647"]
+  disable_remote_exec = true
   options = {
     "driver.raw_exec.enable" = "1"
-    "docker.auth.config"     = "/home/pi/.docker/config.json"
+    "driver.exec.enable" = "0"
+    "driver.java.enable" = "0"
+    "docker.auth.config"     = "/home/hung/.docker/config.json"
   }
 }
+
+data_dir = "/home/hung/nomad_data"
 
 plugin "docker" {
   config {
@@ -14,4 +19,8 @@ plugin "docker" {
       selinuxlabel = false
     }
   }
+}
+
+consul {
+  enabled = false
 }
