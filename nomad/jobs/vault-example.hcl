@@ -12,13 +12,14 @@ job "vault-example" {
     }
 
     task "demo" {
-      driver = "raw_exec"
+      driver = "docker"
 
       config {
-        command = "/bin/sh"
+        image = "node:alpine"
+        command = "sh"
         args = [
           "-c",
-          "echo \"Secret from Vault: $${VAULT_SECRET}\"; sleep 3600"
+          "echo \"Secret from Vault: $${VAULT_SECRET}\"; node -e 'console.log(\"Node.js with Vault secret: \" + process.env.VAULT_SECRET); setInterval(() => console.log(\"Still running...\"), 10000);'"
         ]
       }
 

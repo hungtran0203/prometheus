@@ -182,18 +182,8 @@ docker-logs-detailed container="all" limit="10":
 
 # -------------------- Local Nomad Commands --------------------
 
-# Install Nomad on the host if not already installed
-install-nomad:
-    @echo "Checking if Nomad is installed..."
-    @if ! command -v nomad > /dev/null; then \
-        echo "Installing Nomad via Homebrew..."; \
-        brew install nomad; \
-    else \
-        echo "Nomad is already installed."; \
-    fi
-
 # Start Nomad on the host
-start-local-nomad: install-nomad
+start-nomad:
     @echo "Creating local data directory..."
     @mkdir -p ./nomad/data
     @echo "Starting Nomad on the host..."
@@ -203,12 +193,9 @@ start-local-nomad: install-nomad
     @nohup nomad agent -config=./nomad/config/local/nomad.hcl -dev > ./nomad/logs/nomad.log 2>&1 & echo $$! > ./nomad/logs/nomad.pid
     @echo "✅ Nomad is now running locally in the background (PID: $$(cat ./nomad/logs/nomad.pid))"
     @echo "Access the UI at http://localhost:4646"
-    @echo "To run a job: just nomad-run-local ./nomad/jobs/vault-example.hcl"
-    @echo "To stop Nomad: just stop-local-nomad"
-    @echo "To view logs: cat ./nomad/logs/nomad.log"
 
 # Stop local Nomad
-stop-local-nomad:
+stop-nomad:
     @echo "Stopping local Nomad agent..."
     @if [ -f ./nomad/logs/nomad.pid ]; then \
         PID=$$(cat ./nomad/logs/nomad.pid); \
@@ -226,23 +213,23 @@ stop-local-nomad:
     @echo "✅ Local Nomad stopped"
 
 # Run a Nomad job with the local Nomad instance
-# Usage: just nomad-run-local job_file
-# Example: just nomad-run-local ./nomad/jobs/vault-example.hcl
-nomad-run-local job_file:
+# Usage: just nomad-job-run job_file
+# Example: just nomad-job-run ./nomad/jobs/vault-example.hcl
+nomad-job-run job_file:
     @echo "Running Nomad job from {{job_file}} using local Nomad..."
     @nomad job run {{job_file}}
     @echo "✅ Job submitted to local Nomad!"
 
 # Stop a Nomad job with the local Nomad instance
-# Usage: just nomad-stop-local job_name
-# Example: just nomad-stop-local vault-example
-nomad-stop-local job_name:
+# Usage: just nomad-job-stop job_name
+# Example: just nomad-job-stop vault-example
+nomad-job-stop job_name:
     @echo "Stopping Nomad job {{job_name}} using local Nomad..."
     @nomad job stop {{job_name}}
     @echo "✅ Job stopped!"
 
 # Check status of local Nomad jobs
-nomad-status-local:
+nomad-status:
     @echo "Checking status of jobs in local Nomad..."
     @nomad job status
     @echo "For more details on a specific job: nomad job status JOB_NAME"
