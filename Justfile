@@ -66,6 +66,7 @@ logs service tail_lines="20":
 #   just open prometheus - open Prometheus UI
 #   just open logs       - open Logs Explorer in Grafana
 #   just open vector     - open Vector Logs Dashboard
+#   just open vault      - open Vault UI
 open dashboard="grafana":
     @echo "Opening {{dashboard}} dashboard..."
     @if [ "{{dashboard}}" = "grafana" ]; then \
@@ -76,9 +77,11 @@ open dashboard="grafana":
         open http://localhost:3333/explore?orgId=1&left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22%7D%5D%7D; \
     elif [ "{{dashboard}}" = "vector" ]; then \
         open http://localhost:3333/d/vector-logs-dashboard/vector-logs-dashboard; \
+    elif [ "{{dashboard}}" = "vault" ]; then \
+        open http://localhost:8200/ui; \
     else \
         echo "Unknown dashboard: {{dashboard}}"; \
-        echo "Available options: grafana, prometheus, logs, vector"; \
+        echo "Available options: grafana, prometheus, logs, vector, vault"; \
     fi
 
 # Show active targets in Prometheus
@@ -111,37 +114,120 @@ get-log pid:
     @echo "Fetching stdout and stderr from process {{pid}}..."
     @./scripts/utils/get_process_logs.sh {{pid}}
 
-# View logs from Docker containers and socket logs in Loki
-# Usage: just docker-logs [container_name] [limit]
+# Fetch logs from Docker containers and sockets
+# Usage: just docker-logs [container] [limit]
 # Examples:
-#   just docker-logs        - show logs from all containers and sockets
-#   just docker-logs loki   - show logs from the loki container
-#   just docker-logs socket - show logs from socket connections
-#   just docker-logs loki 50 - show 50 logs from the loki container
-docker-logs container="all" limit="20":
+#   just docker-logs         - show all logs (both Docker and socket logs)
+#   just docker-logs all     - show all logs
+#   just docker-logs socket  - show only socket logs
+#   just docker-logs vector 5 - show last 5 logs from vector container
+docker-logs container="all" limit="10":
     @echo "Fetching logs from Docker containers and sockets..."
     @if [ "{{container}}" = "all" ]; then \
-        curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
             --data-urlencode 'query={source_type=~"docker_logs|socket"}' \
-            --data-urlencode "limit={{limit}}" \
-            --data-urlencode "start=$(date -u -v-10M +%s)000000000" \
-            --data-urlencode "end=$(date -u +%s)000000000" | \
-            jq -r '.data.result[] | .values[] | .[0] + " | " + (.[1] | fromjson | .message)' 2>/dev/null || \
-            echo "No logs found"; \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | \($labels.container_name // "socket") | \(.1)"'; \
     elif [ "{{container}}" = "socket" ]; then \
-        curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
             --data-urlencode 'query={source_type="socket"}' \
-            --data-urlencode "limit={{limit}}" \
-            --data-urlencode "start=$(date -u -v-10M +%s)000000000" \
-            --data-urlencode "end=$(date -u +%s)000000000" | \
-            jq -r '.data.result[] | .values[] | .[0] + " | " + (.[1] | fromjson | .message)' 2>/dev/null || \
-            echo "No socket logs found"; \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | socket | \(.1)"'; \
     else \
-        curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
-            --data-urlencode 'query={source_type="docker_logs", container_name="{{container}}"}' \
-            --data-urlencode "limit={{limit}}" \
-            --data-urlencode "start=$(date -u -v-10M +%s)000000000" \
-            --data-urlencode "end=$(date -u +%s)000000000" | \
-            jq -r '.data.result[] | .values[] | .[0] + " | " + (.[1] | fromjson | .message)' 2>/dev/null || \
-            echo "No logs found for container {{container}}"; \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="docker_logs",container_name="{{container}}"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | \($labels.container_name) | \(.1)"'; \
     fi
+
+# Fetch detailed logs from Docker containers and sockets
+# Usage: just docker-logs-detailed [container] [limit]
+# Examples:
+#   just docker-logs-detailed         - show all logs with labels
+#   just docker-logs-detailed all     - show all logs with labels
+#   just docker-logs-detailed socket  - show only socket logs with labels
+#   just docker-logs-detailed vector 5 - show last 5 logs from vector container with labels
+docker-logs-detailed container="all" limit="10":
+    @echo "Fetching detailed logs from Docker containers and sockets..."
+    @if [ "{{container}}" = "all" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type=~"docker_logs|socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Container: \(.stream.container_name // "socket")\nSource: \(.stream.source_type)\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    elif [ "{{container}}" = "socket" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Source: socket\nLabels: \(.stream | del(.source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    else \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="docker_logs",container_name="{{container}}"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Container: \(.stream.container_name)\nSource: docker_logs\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    fi
+
+# -------------------- Vault Commands --------------------
+
+# Initialize Vault server (only required once after clean install)
+vault-init:
+    @echo "Initializing Vault server..."
+    @docker exec -it vault vault operator init > ./vault/vault-keys.txt
+    @echo "⚠️ IMPORTANT: Unseal keys and root token have been saved to ./vault/vault-keys.txt"
+    @echo "⚠️ Keep this file safe and secure!"
+    @echo "✅ Vault initialized!"
+
+# Unseal Vault server (required after each restart)
+vault-unseal:
+    @echo "Unsealing Vault server..."
+    @echo "Enter unseal key 1:"
+    @read KEY && docker exec -it vault vault operator unseal $$KEY
+    @echo "Enter unseal key 2:"
+    @read KEY && docker exec -it vault vault operator unseal $$KEY
+    @echo "Enter unseal key 3:"
+    @read KEY && docker exec -it vault vault operator unseal $$KEY
+    @echo "✅ Vault unsealed!"
+
+# Set Vault token and authenticate
+vault-login:
+    @echo "Logging into Vault..."
+    @echo "Enter root token:"
+    @read TOKEN && docker exec -it vault vault login $$TOKEN
+    @echo "✅ Logged in to Vault!"
+
+# Create a new secret (key-value pair)
+# Usage: just vault-create-secret path key value
+# Example: just vault-create-secret secret/databases/postgres username db_user
+vault-create-secret path key value:
+    @echo "Creating secret {{key}} at {{path}}..."
+    @docker exec -it vault vault kv put {{path}} {{key}}={{value}}
+    @echo "✅ Secret created!"
+
+# Get a secret
+# Usage: just vault-get-secret path
+# Example: just vault-get-secret secret/databases/postgres
+vault-get-secret path:
+    @echo "Getting secret at {{path}}..."
+    @docker exec -it vault vault kv get {{path}}
+
+# Enable the KV secrets engine v2 (only required once after init)
+vault-enable-kv:
+    @echo "Enabling KV secrets engine v2..."
+    @docker exec -it vault vault secrets enable -path=secret kv-v2
+    @echo "✅ KV secrets engine enabled!"
+
+# Check Vault status
+vault-status:
+    @echo "Checking Vault status..."
+    @docker exec -it vault vault status

@@ -110,10 +110,28 @@ services:
       - nginx
     restart: always
 
+  # HashiCorp Vault for secrets management
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: vault
+    network_mode: host
+    ports:
+      - "8200:8200"  
+    volumes:
+      - ./vault/config:/vault/config
+      - vault_data:/vault/data
+      - vault_logs:/vault/logs
+    cap_add:
+      - IPC_LOCK
+    command: server -config=/vault/config/vault.json
+    restart: on-failure
+
 volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  vault_data:
+  vault_logs:
 
 networks:
   monitoring_network:

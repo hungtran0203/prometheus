@@ -12,12 +12,29 @@ type = "socket"
 mode = "tcp"
 address = "0.0.0.0:45000"
 
+# Transform to add metadata to Docker logs
+[transforms.docker_metadata]
+type = "remap"
+inputs = ["docker_source"]
+source = '''
+. = merge(., {"source_type": "docker_logs"})
+'''
+
+# Transform to add metadata to socket logs
+[transforms.socket_metadata]
+type = "remap"
+inputs = ["unified_socket"]
+source = '''
+. = merge(., {"source_type": "socket"})
+'''
+
 # Output logs to Loki
 [sinks.loki]
 type = "loki"
-inputs = ["docker_source", "unified_socket"]
+inputs = ["docker_metadata", "socket_metadata"]
 endpoint = "http://loki:3100"
 encoding.codec = "json"
 labels.app = "app_logs"
 labels.host = "{{ host }}"
 labels.source_type = "{{ source_type }}"
+labels.container_name = "{{ container_name }}"
