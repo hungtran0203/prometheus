@@ -20,40 +20,14 @@ services:
       - hashicorp_network
       - monitoring_network
 
-  # HashiCorp Nomad for scheduling and orchestration
-  hc-nomad:
-    image: hashicorp/nomad:1.6
-    container_name: hc-nomad
-    ports:
-      - "4646:4646"  # HTTP API and UI
-      - "4647:4647"  # RPC
-      - "4648:4648"  # Serf WAN
-    volumes:
-      - ./nomad/config:/etc/nomad.d
-      - ./nomad/data:/opt/nomad/data
-    environment:
-      - NOMAD_VAULT_TOKEN=root
-      - NOMAD_VAULT_ADDR=http://hc-vault:8200
-      - NOMAD_SKIP_DOCKER_IMAGE_WARN=true
-    cap_add:
-      - IPC_LOCK
-    command: agent -dev -bind=0.0.0.0 -config=/etc/nomad.d/nomad.hcl
-    restart: on-failure
-    networks:
-      - hashicorp_network
-      - monitoring_network
-    depends_on:
-      - hc-vault
-      - hc-consul
-
   # HashiCorp Consul for service discovery and configuration
   hc-consul:
     image: hashicorp/consul:1.15
     container_name: hc-consul
     ports:
-      - "8500:8500"  # HTTP API and UI on a different port
-      - "8600:8600/tcp"  # DNS interface (TCP)
-      - "8600:8600/udp"  # DNS interface (UDP)
+      - "8600:8500"  # HTTP API and UI on a different port
+      - "8601:8600/tcp"  # DNS interface (TCP)
+      - "8601:8600/udp"  # DNS interface (UDP)
     volumes:
       - ./consul/config:/consul/config
       - ./consul/data:/consul/data

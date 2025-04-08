@@ -179,3 +179,82 @@ docker-logs-detailed container="all" limit="10":
             --data-urlencode 'limit={{limit}}' | \
         jq -r '.data.result[] | "Container: \(.stream.container_name)\nSource: docker_logs\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
     fi
+
+# -------------------- Local Nomad Commands --------------------
+
+# Install Nomad on the host if not already installed
+install-nomad:
+    @echo "Checking if Nomad is installed..."
+    @if ! command -v nomad > /dev/null; then \
+        echo "Installing Nomad via Homebrew..."; \
+        brew install nomad; \
+    else \
+        echo "Nomad is already installed."; \
+    fi
+
+# Start Nomad on the host
+start-local-nomad: install-nomad
+    @echo "Creating local data directory..."
+    @mkdir -p ./nomad/data
+    @echo "Starting Nomad on the host..."
+    @echo "Stopping any existing container Nomad instance first..."
+    @docker stop hc-nomad 2>/dev/null || true
+    @echo "Starting local Nomad agent..."
+    @nohup nomad agent -config=./nomad/config/local/nomad.hcl -dev > ./nomad/logs/nomad.log 2>&1 & echo $$! > ./nomad/logs/nomad.pid
+    @echo "✅ Nomad is now running locally in the background (PID: $$(cat ./nomad/logs/nomad.pid))"
+    @echo "Access the UI at http://localhost:4646"
+    @echo "To run a job: just nomad-run-local ./nomad/jobs/vault-example.hcl"
+    @echo "To stop Nomad: just stop-local-nomad"
+    @echo "To view logs: cat ./nomad/logs/nomad.log"
+
+# Stop local Nomad
+stop-local-nomad:
+    @echo "Stopping local Nomad agent..."
+    @if [ -f ./nomad/logs/nomad.pid ]; then \
+        PID=$$(cat ./nomad/logs/nomad.pid); \
+        if ps -p $$PID > /dev/null; then \
+            kill $$PID; \
+            echo "Nomad process (PID: $$PID) stopped."; \
+        else \
+            echo "Nomad process (PID: $$PID) not found, it may have already stopped."; \
+        fi; \
+        rm -f ./nomad/logs/nomad.pid; \
+    else \
+        echo "No PID file found, trying to find and kill Nomad process..."; \
+        pkill -f "nomad agent" || echo "No Nomad process found"; \
+    fi
+    @echo "✅ Local Nomad stopped"
+
+# Run a Nomad job with the local Nomad instance
+# Usage: just nomad-run-local job_file
+# Example: just nomad-run-local ./nomad/jobs/vault-example.hcl
+nomad-run-local job_file:
+    @echo "Running Nomad job from {{job_file}} using local Nomad..."
+    @nomad job run {{job_file}}
+    @echo "✅ Job submitted to local Nomad!"
+
+# Stop a Nomad job with the local Nomad instance
+# Usage: just nomad-stop-local job_name
+# Example: just nomad-stop-local vault-example
+nomad-stop-local job_name:
+    @echo "Stopping Nomad job {{job_name}} using local Nomad..."
+    @nomad job stop {{job_name}}
+    @echo "✅ Job stopped!"
+
+# Check status of local Nomad jobs
+nomad-status-local:
+    @echo "Checking status of jobs in local Nomad..."
+    @nomad job status
+    @echo "For more details on a specific job: nomad job status JOB_NAME"
+
+# -------------------- End Local Nomad Commands -------------------- 
+
+# -------------------- DNS Configuration Commands --------------------
+
+# Configure dnsmasq to forward .consul queries to Consul and other queries to 8.8.8.8
+# Usage: just start-dns
+# Example: just start-dns
+start-dns consul_port="8601":
+    @cp /tmp/dns-config/dnsmasq.conf /usr/local/etc/dnsmasq.conf
+    @echo "Restarting dnsmasq service..."
+    @brew services restart dnsmasq

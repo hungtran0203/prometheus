@@ -1,2 +1,4 @@
 # Nginx logs
 nginx/logs/
+*/logs/
+nomad/data/

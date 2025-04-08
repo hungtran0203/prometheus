@@ -12,14 +12,13 @@ job "vault-example" {
     }
 
     task "demo" {
-      driver = "docker"
+      driver = "raw_exec"
 
       config {
-        image = "busybox:latest"
         command = "/bin/sh"
         args = [
           "-c",
-          "echo \"Secret from Vault: $${VAULT_SECRET}\"; while true; do sleep 30; done"
+          "echo \"Secret from Vault: $${VAULT_SECRET}\"; sleep 3600"
         ]
       }
 
@@ -30,32 +29,13 @@ job "vault-example" {
 VAULT_SECRET="{{ .Data.data.message }}"
 {{ end }}
 EOH
-        destination = "secrets/file.env"
+        destination = "local/file.env"
         env = true
       }
 
       resources {
         cpu    = 100
         memory = 128
-      }
-
-      service {
-        name = "vault-demo"
-        port = "http"
-        tags = ["demo", "vault"]
-
-        check {
-          type     = "tcp"
-          port     = "http"
-          interval = "10s"
-          timeout  = "2s"
-        }
-      }
-    }
-
-    network {
-      port "http" {
-        to = 8080
       }
     }
   }
