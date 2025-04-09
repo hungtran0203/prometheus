@@ -1,6 +1,11 @@
 job "vault-example" {
   datacenters = ["dc1"]
   type        = "service"
+  constraint {
+    attribute = "${meta.role}"
+    operator  = "="
+    value     = "ras"
+  }
 
   group "app" {
     count = 1

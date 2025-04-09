@@ -2,6 +2,7 @@ client {
   enabled = true
   servers = ["192.168.1.104:4647"]
   disable_remote_exec = true
+  node_class = "ras"
   options = {
     "driver.raw_exec.enable" = "1"
     "driver.exec.enable" = "0"
