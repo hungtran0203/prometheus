@@ -1,0 +1,93 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Display available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  start:
+    desc: Start Nomad on the host
+    cmds:
+      - nomad agent -config=config/local/nomad.hcl
+
+  stop:
+    desc: Stop local Nomad
+    cmds:
+      - pkill nomad || true
+
+  job-run:
+    desc: Run a Nomad job
+    summary: |
+      Usage: task job-run job_file=./jobs/vault-example.hcl
+    requires:
+      vars: [job_file]
+    cmds:
+      - nomad job run {{.job_file}}
+
+  job-stop:
+    desc: Stop a Nomad job
+    summary: |
+      Usage: task job-stop job_name=vault-example
+    requires:
+      vars: [job_name]
+    cmds:
+      - nomad job stop {{.job_name}}
+
+  status:
+    desc: Check status of Nomad jobs
+    cmds:
+      - nomad status
+
+  setup-raspi:
+    desc: Setup Nomad on the Raspberry Pi
+    cmds:
+      - cd ../ras && task setup-nomad
+
+  fix-raspi-drivers:
+    desc: Fix drivers on the Raspberry Pi
+    cmds:
+      - cd ../ras && task fix-drivers
+
+  fix-raspi-cgroups:
+    desc: Fix cgroups on the Raspberry Pi
+    cmds:
+      - cd ../ras && task fix-cgroups
+
+  ssh-raspi:
+    desc: SSH into the Raspberry Pi
+    cmds:
+      - cd ../ras && task ssh
+
+  node-status:
+    desc: Check status of Nomad nodes
+    summary: |
+      Usage: task node-status [node_id=all]
+    cmds:
+      - |
+        if [ "{{.node_id}}" = "all" ]; then
+          echo "Checking status of all Nomad nodes..."
+          nomad node status
+        else
+          echo "Checking status of Nomad node {{.node_id}}..."
+          nomad node status {{.node_id}}
+        fi
+    vars:
+      node_id: '{{default "all" .node_id}}'
+
+  logs:
+    desc: View logs for a Nomad allocation
+    summary: |
+      Usage: task logs alloc_id=abcd1234 [task=redis]
+    cmds:
+      - |
+        if [ -n "{{.task}}" ]; then
+          echo "Viewing logs for task {{.task}} in allocation {{.alloc_id}}..."
+          nomad alloc logs {{.alloc_id}} {{.task}}
+        else
+          echo "Viewing logs for allocation {{.alloc_id}}..."
+          nomad alloc logs {{.alloc_id}}
+        fi
+    requires:
+      vars: [alloc_id] 

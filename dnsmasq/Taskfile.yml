@@ -1,0 +1,44 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Display available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  start:
+    desc: Start dnsmasq service
+    cmds:
+      - sudo cp dnsmasq.conf /usr/local/etc/dnsmasq.conf
+      - sudo brew services start dnsmasq
+
+  stop:
+    desc: Stop dnsmasq service
+    cmds:
+      - sudo brew services stop dnsmasq
+
+  restart:
+    desc: Restart dnsmasq service
+    cmds:
+      - sudo brew services restart dnsmasq
+
+  status:
+    desc: Check dnsmasq service status
+    cmds:
+      - sudo brew services info dnsmasq
+
+  test:
+    desc: Test DNS resolution
+    cmds:
+      - dig @127.0.0.1 google.com
+
+  test-consul:
+    desc: Test Consul DNS resolution
+    cmds:
+      - dig @127.0.0.1 consul.service.consul
+
+  test-external:
+    desc: Test external domain resolution
+    cmds:
+      - dig @127.0.0.1 example.com 

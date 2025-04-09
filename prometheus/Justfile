@@ -1,0 +1,84 @@
+# Monitoring Commands - Task Runner
+# Run commands with: just -f prometheus/Justfile <command>
+
+# Default recipe to display help information
+default:
+    @just -f prometheus/Justfile --list
+
+# Watch and forward logs from a process listening on a specific port
+# Usage: just -f prometheus/Justfile forward-logs port
+# Example: just -f prometheus/Justfile forward-logs 3000
+forward-logs port:
+    @echo "Watching for process on port {{port}} and forwarding logs to Vector (port 45000)..."
+    @../scripts/utils/forward_logs.sh {{port}}
+
+# Get stdout and stderr from a process by PID
+# Usage: just -f prometheus/Justfile get-log pid
+# Example: just -f prometheus/Justfile get-log 83976
+get-log pid:
+    @echo "Fetching stdout and stderr from process {{pid}}..."
+    @../scripts/utils/get_process_logs.sh {{pid}}
+
+# Fetch logs from Docker containers and sockets
+# Usage: just -f prometheus/Justfile docker-logs [container] [limit]
+# Examples:
+#   just -f prometheus/Justfile docker-logs         - show all logs (both Docker and socket logs)
+#   just -f prometheus/Justfile docker-logs all     - show all logs
+#   just -f prometheus/Justfile docker-logs socket  - show only socket logs
+#   just -f prometheus/Justfile docker-logs vector 5 - show last 5 logs from vector container
+docker-logs container="all" limit="10":
+    @echo "Fetching logs from Docker containers and sockets..."
+    @if [ "{{container}}" = "all" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type=~"docker_logs|socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | \($labels.container_name // "socket") | \(.1)"'; \
+    elif [ "{{container}}" = "socket" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | socket | \(.1)"'; \
+    else \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="docker_logs",container_name="{{container}}"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | \($labels.container_name) | \(.1)"'; \
+    fi
+
+# Fetch detailed logs from Docker containers and sockets
+# Usage: just -f prometheus/Justfile docker-logs-detailed [container] [limit]
+# Examples:
+#   just -f prometheus/Justfile docker-logs-detailed         - show all logs with labels
+#   just -f prometheus/Justfile docker-logs-detailed all     - show all logs with labels
+#   just -f prometheus/Justfile docker-logs-detailed socket  - show only socket logs with labels
+#   just -f prometheus/Justfile docker-logs-detailed vector 5 - show last 5 logs from vector container with labels
+docker-logs-detailed container="all" limit="10":
+    @echo "Fetching detailed logs from Docker containers and sockets..."
+    @if [ "{{container}}" = "all" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type=~"docker_logs|socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Container: \(.stream.container_name // "socket")\nSource: \(.stream.source_type)\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    elif [ "{{container}}" = "socket" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Source: socket\nLabels: \(.stream | del(.source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    else \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="docker_logs",container_name="{{container}}"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Container: \(.stream.container_name)\nSource: docker_logs\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    fi 

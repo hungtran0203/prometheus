@@ -1,0 +1,167 @@
+# Docker Commands - Task Runner
+# Run commands with: just -f docker/Justfile <command>
+
+# Default recipe to display help information
+default:
+    @just -f docker/Justfile --list
+
+# Add monitoring for a new application
+# Usage: just -f docker/Justfile add-app app_name port target_port
+# Example: just -f docker/Justfile add-app newapp 3005 33005
+add-app app_name port target_port:
+    @echo "Adding monitoring for {{app_name}} on port {{port}} (forwarding to {{target_port}})"
+    @../scripts/add_monitoring.sh "{{app_name}}" "{{port}}" "{{target_port}}"
+    @echo "✅ Configuration updated! Run 'just -f docker/Justfile restart' to apply changes."
+
+# Remove monitoring for an application
+# Usage: just -f docker/Justfile remove-app app_name port
+# Example: just -f docker/Justfile remove-app newapp 3005
+remove-app app_name port:
+    @echo "Removing monitoring for {{app_name}} on port {{port}}"
+    @../scripts/remove_monitoring.sh "{{app_name}}" "{{port}}"
+    @echo "✅ Configuration updated! Run 'just -f docker/Justfile restart' to apply changes."
+
+# List all currently monitored applications
+list-apps:
+    @../scripts/list_apps.sh
+
+# Restart services
+# Usage: just -f docker/Justfile restart [service]
+# Examples:
+#   just -f docker/Justfile restart        - restart all services
+#   just -f docker/Justfile restart nginx  - restart only nginx
+#   just -f docker/Justfile restart apps   - restart all app services
+restart service="all":
+    @if [ "{{service}}" = "all" ]; then \
+        echo "Restarting all services..."; \
+        docker compose restart; \
+        docker compose -f ../docker-compose-app.yml down; \
+        docker compose -f ../docker-compose-app.yml up -d --remove-orphans; \
+        docker compose -f ../docker-compose-hcl.yml down; \
+        docker compose -f ../docker-compose-hcl.yml up -d --remove-orphans; \
+    elif [ "{{service}}" = "apps" ]; then \
+        echo "Restarting application services..."; \
+        docker compose -f ../docker-compose-app.yml down; \
+        docker compose -f ../docker-compose-app.yml up -d --remove-orphans; \
+    elif [ "{{service}}" = "hashicorp" ]; then \
+        echo "Restarting HashiCorp services..."; \
+        docker compose -f ../docker-compose-hcl.yml down; \
+        docker compose -f ../docker-compose-hcl.yml up -d --remove-orphans; \
+    fi
+
+# Check the status of all services
+status:
+    @echo "Checking service status..."
+    docker compose ps
+    @echo "\nProxy app services:"
+    docker compose -f ../docker-compose-app.yml ps
+    @echo "\nHashiCorp services:"
+    docker compose -f ../docker-compose-hcl.yml ps
+
+# View logs for a specific service
+# Usage: just -f docker/Justfile logs service [tail_lines]
+# Example: just -f docker/Justfile logs nginx 50
+logs service tail_lines="20":
+    docker compose logs {{service}} --tail {{tail_lines}} -f
+
+# Open dashboards and UIs
+# Usage: just -f docker/Justfile open [dashboard]
+# Examples:
+#   just -f docker/Justfile open grafana    - open Grafana UI
+#   just -f docker/Justfile open prometheus - open Prometheus UI
+#   just -f docker/Justfile open logs       - open Logs Explorer in Grafana
+#   just -f docker/Justfile open vector     - open Vector Logs Dashboard
+open dashboard="grafana":
+    @echo "Opening {{dashboard}} dashboard..."
+    @if [ "{{dashboard}}" = "grafana" ]; then \
+        open http://localhost:3333; \
+    elif [ "{{dashboard}}" = "prometheus" ]; then \
+        open http://localhost:9090; \
+    elif [ "{{dashboard}}" = "logs" ]; then \
+        open http://localhost:3333/explore?orgId=1&left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22%7D%5D%7D; \
+    elif [ "{{dashboard}}" = "vector" ]; then \
+        open http://localhost:3333/d/vector-logs-dashboard/vector-logs-dashboard; \
+    else \
+        echo "Unknown dashboard: {{dashboard}}"; \
+        echo "Available options: grafana, prometheus, logs, vector"; \
+    fi
+
+# Show active targets in Prometheus
+show-targets:
+    @echo "Fetching Prometheus targets..."
+    curl -s 'http://localhost:9090/api/v1/targets' | jq '.data.activeTargets[] | {job: .labels.job, state: .health, target: .labels.instance}'
+
+# Start/stop all services
+start:
+    @echo "Starting all services..."
+    docker compose up -d
+    docker compose -f ../docker-compose-app.yml up -d
+
+stop:
+    @echo "Stopping all services..."
+    docker compose down
+    docker compose -f ../docker-compose-app.yml down
+
+# Fetch logs from Docker containers and sockets
+# Usage: just -f docker/Justfile docker-logs [container] [limit]
+# Examples:
+#   just -f docker/Justfile docker-logs         - show all logs (both Docker and socket logs)
+#   just -f docker/Justfile docker-logs all     - show all logs
+#   just -f docker/Justfile docker-logs socket  - show only socket logs
+#   just -f docker/Justfile docker-logs vector 5 - show last 5 logs from vector container
+docker-logs container="all" limit="10":
+    @echo "Fetching logs from Docker containers and sockets..."
+    @if [ "{{container}}" = "all" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type=~"docker_logs|socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | \($labels.container_name // "socket") | \(.1)"'; \
+    elif [ "{{container}}" = "socket" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | socket | \(.1)"'; \
+    else \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="docker_logs",container_name="{{container}}"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | .stream as $labels | .values[] | "\(.0) | \($labels.container_name) | \(.1)"'; \
+    fi
+
+# Fetch detailed logs from Docker containers and sockets
+# Usage: just -f docker/Justfile docker-logs-detailed [container] [limit]
+# Examples:
+#   just -f docker/Justfile docker-logs-detailed         - show all logs with labels
+#   just -f docker/Justfile docker-logs-detailed all     - show all logs with labels
+#   just -f docker/Justfile docker-logs-detailed socket  - show only socket logs with labels
+#   just -f docker/Justfile docker-logs-detailed vector 5 - show last 5 logs from vector container with labels
+docker-logs-detailed container="all" limit="10":
+    @echo "Fetching detailed logs from Docker containers and sockets..."
+    @if [ "{{container}}" = "all" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type=~"docker_logs|socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Container: \(.stream.container_name // "socket")\nSource: \(.stream.source_type)\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    elif [ "{{container}}" = "socket" ]; then \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="socket"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Source: socket\nLabels: \(.stream | del(.source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    else \
+        curl -s "http://localhost:3100/loki/api/v1/query_range" \
+            --data-urlencode 'query={source_type="docker_logs",container_name="{{container}}"}' \
+            --data-urlencode 'start=1620000000000000000' \
+            --data-urlencode 'end=1735689600000000000' \
+            --data-urlencode 'limit={{limit}}' | \
+        jq -r '.data.result[] | "Container: \(.stream.container_name)\nSource: docker_logs\nLabels: \(.stream | del(.container_name, .source_type) | tostring)\nLog entries:" as $header | ($header, (.values[] | "[\(.0)] \(.1)"), "---") | select(length > 0)'; \
+    fi 

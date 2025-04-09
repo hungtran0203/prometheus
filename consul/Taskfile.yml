@@ -1,0 +1,124 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Display available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  register-services:
+    desc: Register services with Consul
+    cmds:
+      - echo "Registering services with Consul..."
+      - for file in services/*.json; do
+          curl -X PUT -d @$file http://localhost:8500/v1/agent/service/register;
+        done
+
+  deregister-services:
+    desc: Deregister services from Consul
+    cmds:
+      - echo "Deregistering services from Consul..."
+      - for file in services/*.json; do
+          SERVICE_ID=$(jq -r .ID $file);
+          curl -X PUT http://localhost:8500/v1/agent/service/deregister/$SERVICE_ID;
+        done
+
+  list-services:
+    desc: List registered services
+    cmds:
+      - curl -s http://localhost:8500/v1/agent/services | jq
+
+  check-health:
+    desc: Check health of registered services
+    cmds:
+      - curl -s http://localhost:8500/v1/health/state/any | jq
+
+  service:
+    desc: Get detailed information about a specific Consul service
+    summary: |
+      Usage: task service service_id=vault
+    cmds:
+      - echo "Getting details for Consul service {{.service_id}}..."
+      - curl -s http://localhost:8500/v1/agent/service/{{.service_id}} | jq
+    requires:
+      vars: [service_id]
+
+  deregister-service:
+    desc: Deregister a Consul service
+    summary: |
+      Usage: task deregister-service service_id=vault
+    cmds:
+      - echo "Deregistering Consul service {{.service_id}}..."
+      - curl -s -X PUT http://localhost:8500/v1/agent/service/deregister/{{.service_id}}
+      - echo "✅ Service deregistered"
+    requires:
+      vars: [service_id]
+
+  health-service:
+    desc: Check the health of a service
+    summary: |
+      Usage: task health-service service_id=vault
+    cmds:
+      - echo "Checking health of Consul service {{.service_id}}..."
+      - curl -s http://localhost:8500/v1/health/service/{{.service_id}} | jq
+    requires:
+      vars: [service_id]
+
+  list-checks:
+    desc: List all health checks
+    summary: |
+      Usage: task list-checks [service_id=vault]
+    cmds:
+      - echo "Listing health checks for service {{.service_id}}..."
+      - curl -s http://localhost:8500/v1/health/checks/service/{{.service_id}} | jq
+    vars:
+      service_id: '{{default "vault" .service_id}}'
+
+  list-nodes:
+    desc: List all Consul nodes
+    cmds:
+      - echo "Listing all Consul nodes..."
+      - curl -s http://localhost:8500/v1/catalog/nodes | jq
+
+  kv-put:
+    desc: Store a key-value pair in Consul
+    summary: |
+      Usage: task kv-put key=mykey value=myvalue
+    cmds:
+      - echo "Storing key {{.key}} with value {{.value}} in Consul..."
+      - curl -s -X PUT -d "{{.value}}" http://localhost:8500/v1/kv/{{.key}}
+      - echo "✅ Key-value pair stored"
+    requires:
+      vars: [key, value]
+
+  kv-get:
+    desc: Retrieve a value for a key from Consul
+    summary: |
+      Usage: task kv-get key=mykey
+    cmds:
+      - echo "Retrieving value for key {{.key}} from Consul..."
+      - curl -s http://localhost:8500/v1/kv/{{.key}}?raw
+    requires:
+      vars: [key]
+
+  kv-delete:
+    desc: Delete a key-value pair from Consul
+    summary: |
+      Usage: task kv-delete key=mykey
+    cmds:
+      - echo "Deleting key {{.key}} from Consul..."
+      - curl -s -X DELETE http://localhost:8500/v1/kv/{{.key}}
+      - echo "✅ Key deleted"
+    requires:
+      vars: [key]
+
+  kv-list:
+    desc: List keys in Consul
+    summary: |
+      Usage: task kv-list [prefix=myprefix]
+    cmds:
+      - echo "Listing keys with prefix {{.prefix}} in Consul..."
+      - curl -s http://localhost:8500/v1/kv/{{.prefix}}?keys | jq
+    vars:
+      prefix: '{{default "" .prefix}}' 

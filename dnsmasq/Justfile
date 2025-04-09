@@ -1,0 +1,59 @@
+# DNS Configuration Commands - Task Runner
+# Run commands with: just -f dnsmasq/Justfile <command>
+
+# Default recipe to display help information
+default:
+    @just -f dnsmasq/Justfile --list
+
+# Configure dnsmasq to forward .consul queries to Consul and other queries to 8.8.8.8
+# Usage: just -f dnsmasq/Justfile start [consul_port]
+# Example: just -f dnsmasq/Justfile start
+# Example: just -f dnsmasq/Justfile start 8600
+start consul_port="8600":
+    @cp dnsmasq.conf /usr/local/etc/dnsmasq.conf
+    @echo "Restarting dnsmasq service..."
+    @brew services restart dnsmasq
+
+# Check dnsmasq status
+# Usage: just -f dnsmasq/Justfile status
+status:
+    @echo "Checking dnsmasq service status..."
+    @brew services list | grep dnsmasq
+
+# Stop dnsmasq service
+# Usage: just -f dnsmasq/Justfile stop
+stop:
+    @echo "Stopping dnsmasq service..."
+    @brew services stop dnsmasq
+
+# Restart dnsmasq service
+# Usage: just -f dnsmasq/Justfile restart [consul_port]
+# Example: just -f dnsmasq/Justfile restart
+# Example: just -f dnsmasq/Justfile restart 8600
+restart consul_port="8600":
+    @echo "Restarting dnsmasq service..."
+    @brew services restart dnsmasq
+
+# Test DNS resolution
+# Usage: just -f dnsmasq/Justfile test [domain]
+# Example: just -f dnsmasq/Justfile test
+# Example: just -f dnsmasq/Justfile test vault.service.consul
+test domain="vault.service.consul":
+    @echo "Testing DNS resolution for {{domain}}..."
+    @dig @127.0.0.1 {{domain}} +short
+
+# Test Consul DNS resolution
+# Usage: just -f dnsmasq/Justfile test-consul [service]
+# Example: just -f dnsmasq/Justfile test-consul
+# Example: just -f dnsmasq/Justfile test-consul vault
+test-consul service="vault":
+    @echo "Testing Consul DNS resolution for {{service}}.service.consul..."
+    @dig @127.0.0.1 {{service}}.service.consul +short
+
+# Test external DNS resolution
+# Usage: just -f dnsmasq/Justfile test-external [domain]
+# Example: just -f dnsmasq/Justfile test-external
+# Example: just -f dnsmasq/Justfile test-external google.com
+test-external domain="google.com":
+    @echo "Testing external DNS resolution for {{domain}}..."
+    @dig @127.0.0.1 {{domain}} +short 

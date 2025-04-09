@@ -1,0 +1,125 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Display available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  start:
+    desc: Start all services
+    cmds:
+      - echo "Starting all services..."
+      - docker compose up -d
+      - docker compose -f docker-compose-app.yml up -d
+
+  stop:
+    desc: Stop all services
+    cmds:
+      - echo "Stopping all services..."
+      - docker compose down
+      - docker compose -f docker-compose-app.yml down
+
+  restart:
+    desc: Restart services
+    summary: |
+      Usage: task restart [service=all|apps|hashicorp]
+    vars:
+      service: '{{default "all" .service}}'
+    cmds:
+      - |
+        if [ "{{.service}}" = "all" ]; then
+          echo "Restarting all services..."
+          docker compose restart
+          docker compose -f docker-compose-app.yml down
+          docker compose -f docker-compose-app.yml up -d --remove-orphans
+          docker compose -f docker-compose-hcl.yml down
+          docker compose -f docker-compose-hcl.yml up -d --remove-orphans
+        elif [ "{{.service}}" = "apps" ]; then
+          echo "Restarting application services..."
+          docker compose -f docker-compose-app.yml down
+          docker compose -f docker-compose-app.yml up -d --remove-orphans
+        elif [ "{{.service}}" = "hashicorp" ]; then
+          echo "Restarting HashiCorp services..."
+          docker compose -f docker-compose-hcl.yml down
+          docker compose -f docker-compose-hcl.yml up -d --remove-orphans
+        fi
+
+  status:
+    desc: Check the status of all services
+    cmds:
+      - echo "Checking service status..."
+      - docker compose ps
+      - echo "\nProxy app services:"
+      - docker compose -f docker-compose-app.yml ps
+      - echo "\nHashiCorp services:"
+      - docker compose -f docker-compose-hcl.yml ps
+
+  logs:
+    desc: View logs for a specific service
+    summary: |
+      Usage: task logs service=nginx [tail_lines=50]
+    vars:
+      tail_lines: '{{default "20" .tail_lines}}'
+    requires:
+      vars: [service]
+    cmds:
+      - docker compose logs {{.service}} --tail {{.tail_lines}} -f
+
+  show-targets:
+    desc: Show active targets in Prometheus
+    cmds:
+      - echo "Fetching Prometheus targets..."
+      - |
+        curl -s 'http://localhost:9090/api/v1/targets' | \
+        jq '.data.activeTargets[] | {job: .labels.job, state: .health, target: .labels.instance}'
+
+  open:
+    desc: Open dashboards and UIs
+    summary: |
+      Usage: task open [dashboard=grafana|prometheus|logs|vector]
+    vars:
+      dashboard: '{{default "grafana" .dashboard}}'
+    cmds:
+      - echo "Opening {{.dashboard}} dashboard..."
+      - |
+        if [ "{{.dashboard}}" = "grafana" ]; then
+          open http://localhost:3333
+        elif [ "{{.dashboard}}" = "prometheus" ]; then
+          open http://localhost:9090
+        elif [ "{{.dashboard}}" = "logs" ]; then
+          open http://localhost:3333/explore?orgId=1&left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22%7D%5D%7D
+        elif [ "{{.dashboard}}" = "vector" ]; then
+          open http://localhost:3333/d/vector-logs-dashboard/vector-logs-dashboard
+        else
+          echo "Unknown dashboard: {{.dashboard}}"
+          echo "Available options: grafana, prometheus, logs, vector"
+        fi
+
+  add-app:
+    desc: Add monitoring for a new application
+    summary: |
+      Usage: task add-app app_name=myapp port=3000 target_port=33000
+    requires:
+      vars: [app_name, port, target_port]
+    cmds:
+      - echo "Adding monitoring for {{.app_name}} on port {{.port}} (forwarding to {{.target_port}})"
+      - ../scripts/add_monitoring.sh "{{.app_name}}" "{{.port}}" "{{.target_port}}"
+      - echo "Configuration updated! Run 'task restart' to apply changes."
+
+  remove-app:
+    desc: Remove monitoring for an application
+    summary: |
+      Usage: task remove-app app_name=myapp port=3000
+    requires:
+      vars: [app_name, port]
+    cmds:
+      - echo "Removing monitoring for {{.app_name}} on port {{.port}}"
+      - ../scripts/remove_monitoring.sh "{{.app_name}}" "{{.port}}"
+      - echo "Configuration updated! Run 'task restart' to apply changes."
+
+  list-apps:
+    desc: List all currently monitored applications
+    cmds:
+      - ../scripts/list_apps.sh

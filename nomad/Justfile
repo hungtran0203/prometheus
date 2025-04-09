@@ -1,0 +1,76 @@
+# Nomad Commands - Task Runner
+# Run commands with: just -f nomad/Justfile <command>
+
+# Default recipe to display help information
+default:
+    @just -f nomad/Justfile --list
+
+# Start Nomad on the host
+# Usage: just -f nomad/Justfile start
+start:
+    @echo "Creating local data directory..."
+    @mkdir -p ./data
+    @echo "Starting Nomad on the host..."
+    @echo "Stopping any existing container Nomad instance first..."
+    @docker stop hc-nomad 2>/dev/null || true
+    @echo "Starting local Nomad agent..."
+    @nohup nomad agent -config=./config/local/nomad.hcl -dev > ./logs/nomad.log 2>&1 & echo $$! > ./logs/nomad.pid
+    @echo "✅ Nomad is now running locally in the background (PID: $$(cat ./logs/nomad.pid))"
+    @echo "Access the UI at http://localhost:4646"
+
+# Stop local Nomad
+# Usage: just -f nomad/Justfile stop
+stop:
+    @echo "Stopping local Nomad agent..."
+    @if [ -f ./logs/nomad.pid ]; then \
+        kill $$(cat ./logs/nomad.pid) 2>/dev/null || true; \
+        rm ./logs/nomad.pid; \
+        echo "✅ Nomad stopped"; \
+    else \
+        echo "No Nomad PID file found"; \
+    fi
+
+# Run a Nomad job
+# Usage: just -f nomad/Justfile run job_file
+# Example: just -f nomad/Justfile run ./jobs/vault-example.hcl
+run job_file:
+    @echo "Running Nomad job from {{job_file}}..."
+    @nomad job run {{job_file}}
+
+# Stop a Nomad job
+# Usage: just -f nomad/Justfile stop-job job_name
+# Example: just -f nomad/Justfile stop-job vault-example
+stop-job job_name:
+    @echo "Stopping Nomad job {{job_name}}..."
+    @nomad job stop {{job_name}}
+
+# Check status of Nomad jobs
+# Usage: just -f nomad/Justfile status
+status:
+    @echo "Checking Nomad job status..."
+    @nomad job status
+
+# Run a command in the Raspberry Pi Nomad Justfile
+# Usage: just -f nomad/Justfile ras COMMAND [ARGS...]
+# Example: just -f nomad/Justfile ras setup-nomad
+ras *ARGS:
+    #!/usr/bin/env bash
+    cd ../ras && just {{ARGS}}
+
+# Shortcuts for common Raspberry Pi commands
+# Usage: just -f nomad/Justfile setup-raspi
+setup-raspi:
+    @just -f nomad/Justfile ras setup-nomad
+
+# Usage: just -f nomad/Justfile fix-raspi-drivers
+fix-raspi-drivers:
+    @just -f nomad/Justfile ras fix-drivers
+
+# Usage: just -f nomad/Justfile fix-raspi-cgroups
+fix-raspi-cgroups:
+    @just -f nomad/Justfile ras fix-cgroups
+
+# SSH into the Raspberry Pi
+# Usage: just -f nomad/Justfile ssh-raspi
+ssh-raspi:
+    @just -f nomad/Justfile ras ssh 

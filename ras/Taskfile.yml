@@ -1,0 +1,56 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+    desc: Display available tasks
+
+  setup-nomad:
+    desc: Setup Nomad on the Raspberry Pi
+    cmds:
+      - echo "Setting up Nomad on the Raspberry Pi..."
+      - ./scripts/setup-raspi-nomad.sh
+      - echo "✅ Nomad setup complete on Raspberry Pi"
+
+  fix-drivers:
+    desc: Fix Docker drivers on the Raspberry Pi
+    cmds:
+      - echo "Fixing drivers on the Raspberry Pi..."
+      - ssh hung@ras.local "sudo systemctl restart docker"
+      - ssh hung@ras.local "sudo modprobe overlay"
+      - ssh hung@ras.local "sudo modprobe br_netfilter"
+      - echo "✅ Drivers fixed on Raspberry Pi"
+
+  fix-cgroups:
+    desc: Fix cgroups on the Raspberry Pi
+    cmds:
+      - echo "Fixing cgroups on the Raspberry Pi..."
+      - ssh hung@ras.local "sudo systemctl restart containerd"
+      - ssh hung@ras.local "sudo systemctl restart docker"
+      - echo "✅ Cgroups fixed on Raspberry Pi"
+
+  ssh:
+    desc: SSH into the Raspberry Pi
+    cmds:
+      - ssh hung@ras.local
+
+  status:
+    desc: Check Nomad status on the Raspberry Pi
+    cmds:
+      - echo "Checking Nomad status on the Raspberry Pi..."
+      - ssh hung@ras.local "nomad status"
+
+  restart-nomad:
+    desc: Restart Nomad on the Raspberry Pi
+    cmds:
+      - echo "Restarting Nomad on the Raspberry Pi..."
+      - ssh hung@ras.local "sudo systemctl restart nomad"
+      - echo "✅ Nomad restarted on Raspberry Pi"
+
+  logs:
+    desc: View Nomad logs on the Raspberry Pi
+    cmds:
+      - echo "Viewing Nomad logs on the Raspberry Pi..."
+      - ssh hung@ras.local "sudo journalctl -u nomad -f" 
