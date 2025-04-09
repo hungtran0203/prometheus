@@ -238,32 +238,26 @@ nomad-status:
 
 # -------------------- Raspberry Pi Nomad Commands --------------------
 
-# Set up a Nomad client on a Raspberry Pi
+# Run a command in the Raspberry Pi Justfile
+# Usage: just ras COMMAND [ARGS...]
+# Example: just ras setup-nomad
+ras *ARGS:
+    #!/usr/bin/env bash
+    cd ras && just {{ARGS}}
+
+# Shortcuts for common Raspberry Pi commands
 setup-raspi-nomad:
-    @echo "Setting up Nomad client on Raspberry Pi..."
-    @./scripts/utils/setup-raspi-nomad
-    @echo "Waiting for client to become available..."
-    @sleep 5
-    @curl -s http://ras.local:4646/v1/agent/self > /dev/null && echo "✅ Raspberry Pi Nomad client is ready" || echo "❌ Failed to connect to Raspberry Pi Nomad client"
+    @just ras setup-nomad
 
-# Fix Java and Exec drivers on Raspberry Pi
 fix-raspi-drivers:
-    @echo "Fixing Java and Exec drivers on Raspberry Pi..."
-    @./scripts/utils/setup-raspi-drivers.sh
-    @echo "Waiting for Nomad to restart..."
-    @sleep 10
-    @RASPI_ID=$(curl -s http://localhost:4646/v1/nodes | jq -r '.[] | select(.Name=="ras") | .ID') && \
-     DRIVERS_STATUS=$(curl -s http://localhost:4646/v1/node/$${RASPI_ID} | jq '.Drivers | with_entries(select(.key == "java" or .key == "exec")) | map(.value.Healthy)') && \
-     if [[ "$${DRIVERS_STATUS}" == "[true,true]" ]]; then \
-       echo "✅ Java and Exec drivers are now healthy"; \
-     else \
-       echo "❌ Drivers still have issues. Check with: nomad node status $${RASPI_ID}"; \
-     fi
+    @just ras fix-drivers
 
-# Fix cgroups on Raspberry Pi
 fix-raspi-cgroups:
-    @echo "Fixing cgroups on Raspberry Pi..."
-    @./scripts/utils/fix-cgroups.sh
+    @just ras fix-cgroups
+
+# SSH into the Raspberry Pi
+ssh-raspi:
+    @just ras ssh
 
 # -------------------- End Raspberry Pi Nomad Commands --------------------
 

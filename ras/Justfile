@@ -1,0 +1,34 @@
+# Raspberry Pi Nomad Commands
+
+# Default recipe to display help information
+default:
+    @just --list
+
+# Set up a Nomad client on a Raspberry Pi
+setup-nomad:
+    @echo "Setting up Nomad client on Raspberry Pi..."
+    @./scripts/setup-raspi-nomad.sh
+    @echo "Checking connection to Raspberry Pi Nomad client..."
+    @curl -s http://ras.local:4646/v1/agent/self > /dev/null && echo "✅ Raspberry Pi Nomad client is ready" || echo "❌ Failed to connect to Raspberry Pi Nomad client"
+
+# Fix Java and Exec drivers on Raspberry Pi
+fix-drivers:
+    @echo "Fixing Java and Exec drivers on Raspberry Pi..."
+    @./scripts/setup-raspi-drivers.sh
+    @echo "Checking if drivers are now healthy..."
+    @RASPI_ID=$(curl -s http://localhost:4646/v1/nodes | jq -r '.[] | select(.Name=="ras") | .ID') && \
+    DRIVERS_STATUS=$(curl -s http://localhost:4646/v1/node/$${RASPI_ID} | jq '.Drivers | with_entries(select(.key == "java" or .key == "exec")) | map(.value.Healthy)') && \
+    if [[ $${DRIVERS_STATUS} == "[true,true]" ]]; then \
+        echo "✅ Java and Exec drivers are now healthy!"; \
+    else \
+        echo "❌ Drivers still have issues. Check with: nomad node status $${RASPI_ID}"; \
+    fi
+
+# Fix cgroups on Raspberry Pi
+fix-cgroups:
+    @echo "Fixing cgroups on Raspberry Pi..."
+    @./scripts/fix-cgroups.sh
+
+# SSH into the Raspberry Pi
+ssh:
+    @ssh hung@ras.local
