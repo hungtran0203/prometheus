@@ -1,5 +1,5 @@
 job "docker-node" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "aws", "gcp"]
   type        = "service"
 
   group "app" {
