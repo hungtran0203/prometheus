@@ -50,6 +50,125 @@ status:
     @echo "Checking Nomad job status..."
     @nomad job status
 
+# Execute a job and connect to its task via shell
+# Usage: just -f nomad/Justfile exec job_file
+# Example: just -f nomad/Justfile exec ./jobs/vault-example.hcl
+exec job_file:
+    #!/usr/bin/env bash
+    set -e
+    
+    # Function to print error and exit
+    error_exit() {
+        echo "❌ Error: $1"
+        if [ ! -z "$2" ]; then
+            echo "Details: $2"
+        fi
+        if [ ! -z "$3" ]; then
+            echo "Command to check status: $3"
+        fi
+        exit 1
+    }
+    
+    # Check if job file exists
+    if [ ! -f "{{job_file}}" ]; then
+        error_exit "Job file '{{job_file}}' not found"
+    fi
+    
+    # Check if Nomad is running
+    if ! nomad server members >/dev/null 2>&1; then
+        error_exit "Nomad server is not running" "Start Nomad with: just -f nomad/Justfile start"
+    fi
+    
+    # Get job name from file
+    JOB_NAME=$(basename {{job_file}} .hcl)
+    echo "Starting job {{job_file}}..."
+    
+    # Run the job and capture output
+    if ! JOB_OUTPUT=$(nomad job run {{job_file}} 2>&1); then
+        error_exit "Failed to start job" "$JOB_OUTPUT" "nomad job status $JOB_NAME"
+    fi
+    
+    # Wait for allocation to be running with timeout
+    echo "Waiting for allocation to be running..."
+    TIMEOUT=60  # 60 seconds timeout
+    START_TIME=$(date +%s)
+    
+    while true; do
+        # Check timeout
+        CURRENT_TIME=$(date +%s)
+        ELAPSED=$((CURRENT_TIME - START_TIME))
+        if [ $ELAPSED -gt $TIMEOUT ]; then
+            error_exit "Timeout waiting for allocation to be running" \
+                      "Job may still be starting or failed" \
+                      "nomad job status $JOB_NAME"
+        fi
+        
+        # Get allocation ID
+        if ! ALLOC_OUTPUT=$(nomad job allocs -json $JOB_NAME 2>&1); then
+            error_exit "Failed to get allocation info" "$ALLOC_OUTPUT" "nomad job status $JOB_NAME"
+        fi
+        
+        # Check if we got valid JSON
+        if ! echo "$ALLOC_OUTPUT" | jq . >/dev/null 2>&1; then
+            error_exit "Invalid JSON response from Nomad" "$ALLOC_OUTPUT" "nomad job status $JOB_NAME"
+        fi
+        
+        ALLOC_ID=$(echo "$ALLOC_OUTPUT" | jq -r '.[0].ID')
+        if [ -z "$ALLOC_ID" ] || [ "$ALLOC_ID" = "null" ]; then
+            echo "Waiting for allocation... ($ELAPSED/$TIMEOUT seconds)"
+            sleep 2
+            continue
+        fi
+        
+        # Get allocation status
+        if ! STATUS_OUTPUT=$(nomad alloc status -json $ALLOC_ID 2>&1); then
+            error_exit "Failed to get allocation status" "$STATUS_OUTPUT" "nomad alloc status $ALLOC_ID"
+        fi
+        
+        # Check if we got valid JSON
+        if ! echo "$STATUS_OUTPUT" | jq . >/dev/null 2>&1; then
+            error_exit "Invalid JSON response from Nomad" "$STATUS_OUTPUT" "nomad alloc status $ALLOC_ID"
+        fi
+        
+        STATUS=$(echo "$STATUS_OUTPUT" | jq -r '.ClientStatus')
+        if [ "$STATUS" = "running" ]; then
+            break
+        elif [ "$STATUS" = "failed" ]; then
+            # Get failure reason if available
+            FAILURE_REASON=$(echo "$STATUS_OUTPUT" | jq -r '.TaskStates[].Events[-1].Message // "Unknown reason"')
+            error_exit "Allocation failed to start" "$FAILURE_REASON" "nomad alloc status $ALLOC_ID"
+        fi
+        
+        echo "Allocation status: $STATUS ($ELAPSED/$TIMEOUT seconds)"
+        sleep 2
+    done
+    
+    # Get task name
+    if ! TASK_OUTPUT=$(nomad alloc status -json $ALLOC_ID 2>&1); then
+        error_exit "Failed to get task info" "$TASK_OUTPUT" "nomad alloc status $ALLOC_ID"
+    fi
+    
+    # Check if we got valid JSON
+    if ! echo "$TASK_OUTPUT" | jq . >/dev/null 2>&1; then
+        error_exit "Invalid JSON response from Nomad" "$TASK_OUTPUT" "nomad alloc status $ALLOC_ID"
+    fi
+    
+    TASK_NAME=$(echo "$TASK_OUTPUT" | jq -r '.TaskStates | keys | .[0]')
+    if [ -z "$TASK_NAME" ] || [ "$TASK_NAME" = "null" ]; then
+        error_exit "No tasks found in allocation" "Allocation may be in an invalid state" "nomad alloc status $ALLOC_ID"
+    fi
+    
+    # Check if task is running
+    TASK_STATUS=$(echo "$TASK_OUTPUT" | jq -r ".TaskStates.\"$TASK_NAME\".State")
+    if [ "$TASK_STATUS" != "running" ]; then
+        error_exit "Task is not running" "Task state: $TASK_STATUS" "nomad alloc status $ALLOC_ID"
+    fi
+    
+    echo "✅ Connecting to task $TASK_NAME in allocation $ALLOC_ID..."
+    if ! nomad alloc exec -task $TASK_NAME $ALLOC_ID /bin/sh; then
+        error_exit "Failed to connect to task" "Task may not support shell execution" "nomad alloc status $ALLOC_ID"
+    fi
+
 # Run a command in the Raspberry Pi Nomad Justfile
 # Usage: just -f nomad/Justfile ras COMMAND [ARGS...]
 # Example: just -f nomad/Justfile ras setup-nomad
