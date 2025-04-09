@@ -6,6 +6,8 @@ server {
   bootstrap_expect = 1
 }
 
+datacenter = "dc1"
+
 # Client settings
 client {
   enabled = true
@@ -19,7 +21,7 @@ client {
 # Vault integration
 vault {
   enabled = true
-  address = "http://192.168.1.104:8200"  # Use host IP instead of localhost
+  address = "http://vault.service.consul:8200"
   token = "root"  # Using the root token for development
   create_from_role = "nomad-cluster"
 }

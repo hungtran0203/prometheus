@@ -1,5 +1,8 @@
 version: '3'
 
+vars:
+  CONFIG_PATH: config/local/nomad.hcl
+
 tasks:
   default:
     desc: Display available tasks
@@ -10,7 +13,7 @@ tasks:
   start:
     desc: Start Nomad on the host
     cmds:
-      - nomad agent -config=config/local/nomad.hcl
+      - nomad agent -config={{.CONFIG_PATH}}
 
   stop:
     desc: Stop local Nomad

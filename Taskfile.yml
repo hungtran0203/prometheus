@@ -1,11 +1,21 @@
 version: '3'
 
 includes:
-  docker: ./docker/Taskfile.yml
-  nomad: ./nomad/Taskfile.yml
-  dns: ./dnsmasq/Taskfile.yml
-  consul: ./consul/Taskfile.yml
-  ras: ./ras/Taskfile.yml
+  docker: 
+    taskfile: ./docker/Taskfile.yml
+    dir: ./docker
+  nomad: 
+    taskfile: ./nomad/Taskfile.yml
+    dir: ./nomad
+  dns: 
+    taskfile: ./dnsmasq/Taskfile.yml
+    dir: ./dnsmasq
+  consul: 
+    taskfile: ./consul/Taskfile.yml
+    dir: ./consul
+  ras: 
+    taskfile: ./ras/Taskfile.yml
+    dir: ./ras
 
 tasks:
   default:
