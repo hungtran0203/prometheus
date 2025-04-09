@@ -1,0 +1,40 @@
+version: '3'
+
+vars:
+  JOB_FILE: config/mcp-postgres.nomad
+
+tasks:
+  default:
+    desc: Display available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  deploy:
+    desc: Deploy MCP with PostgreSQL
+    cmds:
+      - nomad job run {{.JOB_FILE}}
+
+  stop:
+    desc: Stop MCP job
+    cmds:
+      - nomad job stop mcp
+
+  status:
+    desc: Check MCP job status
+    cmds:
+      - nomad job status mcp
+
+  logs:
+    desc: View MCP logs
+    summary: |
+      Usage: task logs [alloc_id]
+    cmds:
+      - |
+        if [ -n "{{.alloc_id}}" ]; then
+          nomad alloc logs {{.alloc_id}}
+        else
+          nomad job logs mcp
+        fi
+    vars:
+      alloc_id: '{{default "" .alloc_id}}' 
