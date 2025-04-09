@@ -266,7 +266,17 @@ ssh-raspi:
 # Configure dnsmasq to forward .consul queries to Consul and other queries to 8.8.8.8
 # Usage: just start-dns
 # Example: just start-dns
-start-dns consul_port="8601":
+start-dns consul_port="8600":
     @cp dnsmasq/dnsmasq.conf /usr/local/etc/dnsmasq.conf
     @echo "Restarting dnsmasq service..."
     @brew services restart dnsmasq
+
+# -------------------- Consul Commands --------------------
+
+# Run a command in the Consul Justfile
+# Usage: just consul COMMAND [ARGS...]
+# Example: just consul register-services
+consul *ARGS:
+    #!/usr/bin/env bash
+    cd consul && just {{ARGS}}
+

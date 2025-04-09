@@ -1,1 +1,0 @@
-{"ID":"vault","Name":"vault","Address":"192.168.1.104","Port":8200,"Tags":["vault","hashicorp"],"Check":{"HTTP":"http://192.168.1.104:8200/v1/sys/health","Interval":"10s"}}

@@ -1,0 +1,19 @@
+{
+  "ID": "nomad-client",
+  "Name": "nomad-client",
+  "Tags": [
+    "nomad",
+    "client",
+    "hashicorp"
+  ],
+  "Address": "127.0.0.1",
+  "Port": 4646,
+  "Meta": {
+    "version": "1.0"
+  },
+  "Check": {
+    "HTTP": "http://127.0.0.1:4646/v1/agent/health",
+    "Interval": "10s",
+    "Timeout": "5s"
+  }
+}

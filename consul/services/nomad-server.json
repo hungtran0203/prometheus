@@ -1,0 +1,19 @@
+{
+  "ID": "nomad-server",
+  "Name": "nomad-server",
+  "Tags": [
+    "nomad",
+    "server",
+    "hashicorp"
+  ],
+  "Address": "127.0.0.1",
+  "Port": 4646,
+  "Meta": {
+    "version": "1.0"
+  },
+  "Check": {
+    "HTTP": "http://127.0.0.1:4646/v1/status/leader",
+    "Interval": "10s",
+    "Timeout": "5s"
+  }
+}

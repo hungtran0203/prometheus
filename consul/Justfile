@@ -1,0 +1,52 @@
+# Consul commands Justfile
+# Run with: just -f consul/Justfile <command> or via main Justfile: just consul <command>
+
+# Default recipe to display help information
+default:
+    @just --list
+
+# Register Consul services from JSON files in consul/services
+# Usage: just register-services
+register-services:
+    @echo "Registering Consul services from JSON files..."
+    @./register-services.sh
+
+# List registered Consul services
+# Usage: just list-services
+list-services:
+    @echo "Listing registered Consul services..."
+    @curl -s http://localhost:8500/v1/agent/services | jq 'keys'
+
+# Get detailed information about a specific Consul service
+# Usage: just service SERVICE_ID
+# Example: just service vault
+service service_id:
+    @echo "Getting details for Consul service {{service_id}}..."
+    @curl -s http://localhost:8500/v1/agent/service/{{service_id}} | jq
+
+# Deregister a Consul service
+# Usage: just deregister-service SERVICE_ID
+# Example: just deregister-service vault
+deregister-service service_id:
+    @echo "Deregistering Consul service {{service_id}}..."
+    @curl -s -X PUT http://localhost:8500/v1/agent/service/deregister/{{service_id}}
+    @echo "✅ Service deregistered"
+
+# Check the health of a service
+# Usage: just health-service SERVICE_ID
+# Example: just health-service vault
+health-service service_id:
+    @echo "Checking health of Consul service {{service_id}}..."
+    @curl -s http://localhost:8500/v1/health/service/{{service_id}} | jq
+
+# List all health checks
+# Usage: just list-checks
+list-checks:
+    @echo "Listing all health checks..."
+    @curl -s http://localhost:8500/v1/health/checks/service/vault | jq
+
+# List all Consul nodes
+# Usage: just list-nodes
+list-nodes:
+    @echo "Listing all Consul nodes..."
+    @curl -s http://localhost:8500/v1/catalog/nodes | jq
