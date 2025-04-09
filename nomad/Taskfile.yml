@@ -13,7 +13,19 @@ tasks:
   start:
     desc: Start Nomad on the host
     cmds:
-      - nomad agent -config={{.CONFIG_PATH}}
+      - ./start-nomad.sh
+
+  start-gcp:
+    desc: Start Nomad with GCP datacenter configuration
+    cmds:
+      - task stop
+      - nomad agent -config=config/gcp/nomad.hcl
+
+  start-aws:
+    desc: Start Nomad with AWS datacenter configuration
+    cmds:
+      - task stop
+      - nomad agent -config=config/aws/nomad.hcl
 
   stop:
     desc: Stop local Nomad
