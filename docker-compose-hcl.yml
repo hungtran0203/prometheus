@@ -25,9 +25,9 @@ services:
     image: hashicorp/consul:1.15
     container_name: hc-consul
     ports:
-      - "8600:8500"  # HTTP API and UI on a different port
-      - "8601:8600/tcp"  # DNS interface (TCP)
-      - "8601:8600/udp"  # DNS interface (UDP)
+      - "8500:8500"  # HTTP API and UI on standard port
+      - "8600:8600/tcp"  # DNS interface (TCP) on standard port
+      - "8600:8600/udp"  # DNS interface (UDP) on standard port
     volumes:
       - ./consul/config:/consul/config
       - ./consul/data:/consul/data

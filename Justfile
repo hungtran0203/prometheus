@@ -236,12 +236,43 @@ nomad-status:
 
 # -------------------- End Local Nomad Commands -------------------- 
 
+# -------------------- Raspberry Pi Nomad Commands --------------------
+
+# Set up a Nomad client on a Raspberry Pi
+setup-raspi-nomad:
+    @echo "Setting up Nomad client on Raspberry Pi..."
+    @./scripts/utils/setup-raspi-nomad
+    @echo "Waiting for client to become available..."
+    @sleep 5
+    @curl -s http://ras.local:4646/v1/agent/self > /dev/null && echo "✅ Raspberry Pi Nomad client is ready" || echo "❌ Failed to connect to Raspberry Pi Nomad client"
+
+# Fix Java and Exec drivers on Raspberry Pi
+fix-raspi-drivers:
+    @echo "Fixing Java and Exec drivers on Raspberry Pi..."
+    @./scripts/utils/setup-raspi-drivers.sh
+    @echo "Waiting for Nomad to restart..."
+    @sleep 10
+    @RASPI_ID=$(curl -s http://localhost:4646/v1/nodes | jq -r '.[] | select(.Name=="ras") | .ID') && \
+     DRIVERS_STATUS=$(curl -s http://localhost:4646/v1/node/$${RASPI_ID} | jq '.Drivers | with_entries(select(.key == "java" or .key == "exec")) | map(.value.Healthy)') && \
+     if [[ "$${DRIVERS_STATUS}" == "[true,true]" ]]; then \
+       echo "✅ Java and Exec drivers are now healthy"; \
+     else \
+       echo "❌ Drivers still have issues. Check with: nomad node status $${RASPI_ID}"; \
+     fi
+
+# Fix cgroups on Raspberry Pi
+fix-raspi-cgroups:
+    @echo "Fixing cgroups on Raspberry Pi..."
+    @./scripts/utils/fix-cgroups.sh
+
+# -------------------- End Raspberry Pi Nomad Commands --------------------
+
 # -------------------- DNS Configuration Commands --------------------
 
 # Configure dnsmasq to forward .consul queries to Consul and other queries to 8.8.8.8
 # Usage: just start-dns
 # Example: just start-dns
 start-dns consul_port="8601":
-    @cp /tmp/dns-config/dnsmasq.conf /usr/local/etc/dnsmasq.conf
+    @cp dnsmasq/dnsmasq.conf /usr/local/etc/dnsmasq.conf
     @echo "Restarting dnsmasq service..."
     @brew services restart dnsmasq

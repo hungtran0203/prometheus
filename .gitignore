@@ -2,3 +2,4 @@
 nginx/logs/
 */logs/
 nomad/data/
+.log

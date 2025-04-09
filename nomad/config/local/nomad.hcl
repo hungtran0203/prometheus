@@ -19,14 +19,14 @@ client {
 # Vault integration
 vault {
   enabled = true
-  address = "http://localhost:8200"
+  address = "http://192.168.1.104:8200"  # Use host IP instead of localhost
   token = "root"  # Using the root token for development
   create_from_role = "nomad-cluster"
 }
 
 # Consul integration
 consul {
-  address = "localhost:8600"  # The exposed port for Consul in the container
+  address = "192.168.1.104:8600"  # Standard Consul DNS port
   auto_advertise = true
   server_auto_join = true
   client_auto_join = true

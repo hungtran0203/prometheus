@@ -10,38 +10,20 @@ job "vault-example" {
   group "app" {
     count = 1
 
-    # Specify Vault policies needed for this group
-    vault {
-      policies = ["nomad-server"]
-      change_mode = "restart"
-    }
-
     task "demo" {
-      driver = "docker"
+      driver = "raw_exec"
 
       config {
-        image = "node:alpine"
         command = "sh"
         args = [
           "-c",
-          "echo \"Secret from Vault: $${VAULT_SECRET}\"; node -e 'console.log(\"Node.js with Vault secret: \" + process.env.VAULT_SECRET); setInterval(() => console.log(\"Still running...\"), 10000);'"
+          "export VAULT_SECRET=$(curl -s -X GET -H \"X-Vault-Token: root\" http://192.168.1.104:8200/v1/secret/data/demo | grep -o '\"message\":\"[^\"]*' | cut -d '\"' -f 4) && echo \"Secret from Vault: $VAULT_SECRET\" && echo \"Success! Waiting...\" && while true; do echo \"Still running...\"; sleep 10; done"
         ]
-      }
-
-      # Get secrets from Vault
-      template {
-        data = <<EOH
-{{ with secret "secret/data/demo" }}
-VAULT_SECRET="{{ .Data.data.message }}"
-{{ end }}
-EOH
-        destination = "local/file.env"
-        env = true
       }
 
       resources {
         cpu    = 100
-        memory = 128
+        memory = 64
       }
     }
   }
