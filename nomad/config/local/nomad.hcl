@@ -28,7 +28,7 @@ vault {
 
 # Consul integration
 consul {
-  address = "192.168.1.104:8600"  # Standard Consul DNS port
+  address = "192.168.1.104:8500"  # Updated to use HTTP API port for Consul
   auto_advertise = true
   server_auto_join = true
   client_auto_join = true

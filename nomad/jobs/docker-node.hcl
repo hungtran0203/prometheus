@@ -7,7 +7,7 @@ job "docker-node" {
 
     network {
       port "http" {
-        to = 8080
+        static = 8080
       }
     }
 
@@ -28,11 +28,6 @@ job "docker-node" {
         interval = "10s"
         timeout  = "2s"
       }
-
-      # Register service with Consul
-      connect {
-        sidecar_service {}
-      }
     }
 
     task "node" {
@@ -40,17 +35,9 @@ job "docker-node" {
 
       config {
         image = "node:alpine"
-        command = "sleep"
-        args = ["infinity"]
-        interactive = true
-        tty = true
-        privileged = false
-        volumes = []
+        command = "sh"
+        args = ["-c", "echo 'Starting Node.js server on port 8080' && npm install -g http-server && http-server -p 8080"]
         ports = ["http"]
-      }
-
-      env {
-        CONSUL_HTTP_ADDR = "http://192.168.1.104:8500"
       }
 
       resources {
