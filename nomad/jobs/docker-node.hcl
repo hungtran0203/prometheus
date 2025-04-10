@@ -9,6 +9,9 @@ job "docker-node" {
       port "http" {
         static = 8080
       }
+      
+      # Connect to the Nomad network
+      mode = "bridge"
     }
 
     service {
@@ -21,6 +24,9 @@ job "docker-node" {
         "traefik.enable=true",
         "traefik.http.routers.node.rule=Host(`node.localhost`)"
       ]
+      
+      # Use consul on the private network
+      address_mode = "driver"
     }
 
     task "node" {
@@ -31,11 +37,18 @@ job "docker-node" {
         command = "sh"
         args = ["-c", "echo 'Starting Node.js server on port 8080' && npm install -g http-server && http-server -p 8080"]
         ports = ["http"]
+        
+        # Connect to the Nomad network
+        network_mode = "nomad_network"
       }
 
       resources {
         cpu    = 100
         memory = 256
+      }
+      
+      env {
+        CONSUL_HTTP_ADDR = "http://172.28.0.3:8500"
       }
     }
   }

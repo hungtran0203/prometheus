@@ -16,19 +16,22 @@ client {
   meta {
     "prometheus.metrics.enabled" = "true"
   }
+
+  # Join the Docker network
+  network_interface = "docker0"
 }
 
 # Vault integration
 vault {
   enabled = true
-  address = "http://vault.service.consul:8200"
+  address = "http://172.28.0.2:8200"  # Vault's static IP in the private network
   token = "root"  # Using the root token for development
   create_from_role = "nomad-cluster"
 }
 
 # Consul integration
 consul {
-  address = "192.168.1.104:8500"  # Updated to use HTTP API port for Consul
+  address = "172.28.0.3:8500"  # Consul's static IP in the private network
   auto_advertise = true
   server_auto_join = true
   client_auto_join = true
@@ -59,7 +62,19 @@ bind_addr = "0.0.0.0"
 
 # Advertise on the host's IP address
 advertise {
-  http = "192.168.1.104"
-  rpc  = "192.168.1.104"
-  serf = "192.168.1.104"
+  http = "127.0.0.1"
+  rpc  = "127.0.0.1"
+  serf = "127.0.0.1"
+}
+
+# Configure network for container networking
+client {
+  cni_path = "/opt/cni/bin"
+  cni_config_dir = "/etc/cni/net.d"
+
+  # Enable bridge network mode for better container-to-container communication
+  host_network = false
+
+  # Tell Nomad which docker network to use
+  host_network_interface = "docker0"
 } 

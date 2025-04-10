@@ -17,8 +17,9 @@ services:
       - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
     restart: on-failure
     networks:
-      - hashicorp_network
-      - monitoring_network
+      nomad_network:
+        ipv4_address: 172.28.0.2
+      monitoring_network:
 
   # HashiCorp Consul for service discovery and configuration
   hc-consul:
@@ -34,16 +35,23 @@ services:
     command: agent -dev -client=0.0.0.0
     restart: on-failure
     networks:
-      - hashicorp_network
-      - monitoring_network
+      nomad_network:
+        ipv4_address: 172.28.0.3
+      monitoring_network:
 
 volumes:
   vault_data:
   vault_logs:
 
 networks:
-  hashicorp_network:
-    name: hashicorp_network
+  nomad_network:
+    name: nomad_network
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
   monitoring_network:
     external: true
     name: prometheus_monitoring_network 
