@@ -1,9 +1,15 @@
+set export # This makes environment variables persist between recipe lines
+
+NOMAD_ADDR := env_var_or_default("NOMAD_ADDR", "http://192.168.1.104:4646")
+NOMAD_SKIP_VERIFY := env_var_or_default("NOMAD_SKIP_VERIFY", "true")
+NOMAD_JOB_FILE_DEFAULT := env_var_or_default("NOMAD_JOB_FILE", "./jobs/vault-example.hcl")
+
 # Nomad Commands - Task Runner
 # Run commands with: just -f nomad/Justfile <command>
 
 # Default recipe to display help information
 default:
-    @just -f nomad/Justfile --list
+    @just --list
 
 # Start Nomad on the host
 # Usage: just -f nomad/Justfile start
@@ -37,23 +43,68 @@ run job_file:
     @echo "Running Nomad job from {{job_file}}..."
     @nomad job run {{job_file}}
 
-# Stop a Nomad job
-# Usage: just -f nomad/Justfile stop-job job_name
-# Example: just -f nomad/Justfile stop-job vault-example
-stop-job job_name:
-    @echo "Stopping Nomad job {{job_name}}..."
-    @nomad job stop {{job_name}}
-
 # Check status of Nomad jobs
 # Usage: just -f nomad/Justfile status
 status:
     @echo "Checking Nomad job status..."
     @nomad job status
 
+# Shortcuts for common Raspberry Pi commands
+# Usage: just -f nomad/Justfile setup-raspi
+setup-raspi:
+    @just -f nomad/Justfile ras setup-nomad
+
+# Usage: just -f nomad/Justfile fix-raspi-drivers
+fix-raspi-drivers:
+    @just -f nomad/Justfile ras fix-drivers
+
+# Usage: just -f nomad/Justfile fix-raspi-cgroups
+fix-raspi-cgroups:
+    @just -f nomad/Justfile ras fix-cgroups
+
+# SSH into the Raspberry Pi
+# Usage: just -f nomad/Justfile ssh-raspi
+ssh-raspi:
+    @just -f nomad/Justfile ras ssh 
+
+config job_file:
+    #!/usr/bin/env zsh
+    export NOMAD_JOB_FILE={{job_file}}
+    echo $NOMAD_JOB_FILE
+
+# Stop a Nomad job
+# Usage: just -f .nomad/Justfile stop-job job_name
+# Example: just -f .nomad/Justfile stop-job indexing-v3-console-staging
+stop-job job_name:
+    @echo "Stopping Nomad job {{job_name}}..."
+    @nomad job stop {{job_name}}
+
 # Execute a job and connect to its task via shell
-# Usage: just -f nomad/Justfile exec job_file
-# Example: just -f nomad/Justfile exec ./jobs/vault-example.hcl
-exec job_file:
+# Usage: just -f .nomad/Justfile exec job_file
+# Example: just -f .nomad/Justfile exec ./jobs/indexing-v3-console-staging.hcl
+# Get allocation ID from job name derived from HCL file
+get-alloc-id job_file:
+    #!/usr/bin/env bash
+    JOB_NAME=$(grep -m 1 "job \".*\"" {{job_file}} | sed 's/job "\(.*\)".*/\1/')
+    if [ -z "$JOB_NAME" ]; then
+        echo "Error: Could not find job name in {{job_file}}" >&2
+        exit 1
+    fi
+    
+    # Get the latest running allocation ID for this job
+    ALLOC_ID=$(nomad job status "$JOB_NAME" | grep -A 5 "Allocations" | awk '/running/ {print $1}' | head -n 1)
+    
+    if [ -z "$ALLOC_ID" ]; then
+        echo "Error: No running allocations found for job $JOB_NAME" >&2
+        exit 1
+    fi
+    
+    echo $ALLOC_ID
+
+# Execute a job and connect to its task via shell
+# Usage: just -f .nomad/Justfile exec job_file
+# Example: just -f .nomad/Justfile exec ./jobs/indexing-v3-console-staging.hcl
+start-job job_file=NOMAD_JOB_FILE_DEFAULT:
     #!/usr/bin/env bash
     set -e
     
@@ -164,32 +215,66 @@ exec job_file:
         error_exit "Task is not running" "Task state: $TASK_STATUS" "nomad alloc status $ALLOC_ID"
     fi
     
-    echo "✅ Connecting to task $TASK_NAME in allocation $ALLOC_ID..."
-    if ! nomad alloc exec -task $TASK_NAME $ALLOC_ID /bin/sh; then
-        error_exit "Failed to connect to task" "Task may not support shell execution" "nomad alloc status $ALLOC_ID"
-    fi
-
-# Run a command in the Raspberry Pi Nomad Justfile
-# Usage: just -f nomad/Justfile ras COMMAND [ARGS...]
-# Example: just -f nomad/Justfile ras setup-nomad
-ras *ARGS:
+# Execute a command in the allocation of a given job
+exec job_file=NOMAD_JOB_FILE_DEFAULT command="/bin/bash":
     #!/usr/bin/env bash
-    cd ../ras && just {{ARGS}}
+    ALLOC_ID=$(just get-alloc-id {{job_file}})
+    echo "Executing in allocation: $ALLOC_ID"
+    nomad alloc exec -i -t "$ALLOC_ID" {{command}}
 
-# Shortcuts for common Raspberry Pi commands
-# Usage: just -f nomad/Justfile setup-raspi
-setup-raspi:
-    @just -f nomad/Justfile ras setup-nomad
+# Transfer files to an allocation using tar streaming
+# Usage: just push <local_path> [job_file] [destination_path_on_alloc]
+push local_path job_file=NOMAD_JOB_FILE_DEFAULT remote_path="/alloc":
+    #!/usr/bin/env bash
+    ALLOC_ID=$(just get-alloc-id {{job_file}})
+    echo "Pushing files to allocation: $ALLOC_ID"
+    
+    # Create target directory in allocation
+    nomad alloc exec "$ALLOC_ID" mkdir -p {{remote_path}}
+    
+    # For a directory: tar and stream
+    if [ -d "{{local_path}}" ]; then
+        echo "Streaming directory to allocation..."
+        BASE_DIR=$(basename "{{local_path}}")
+        TARGET_DIR="{{remote_path}}/$BASE_DIR"
+        
+        # Create target directory
+        nomad alloc exec "$ALLOC_ID" mkdir -p "$TARGET_DIR"
+        
+        # Stream files
+        cd "{{local_path}}" && \
+        tar cf - . | nomad alloc exec -i "$ALLOC_ID" bash -c "cd \"$TARGET_DIR\" && tar xf -"
+    # For a single file: use cat and redirections  
+    else
+        echo "Streaming file to allocation..."
+        cat "{{local_path}}" | nomad alloc exec -i "$ALLOC_ID" \
+        bash -c "cat > {{remote_path}}/$(basename "{{local_path}}")"
+    fi
+    
+    echo "Transfer complete!"
 
-# Usage: just -f nomad/Justfile fix-raspi-drivers
-fix-raspi-drivers:
-    @just -f nomad/Justfile ras fix-drivers
-
-# Usage: just -f nomad/Justfile fix-raspi-cgroups
-fix-raspi-cgroups:
-    @just -f nomad/Justfile ras fix-cgroups
-
-# SSH into the Raspberry Pi
-# Usage: just -f nomad/Justfile ssh-raspi
-ssh-raspi:
-    @just -f nomad/Justfile ras ssh 
+# Get files from an allocation using tar streaming
+# Usage: just pull <remote_path> [job_file] [local_destination_path]  
+pull remote_path job_file=NOMAD_JOB_FILE_DEFAULT local_path="./alloc-data":
+    #!/usr/bin/env bash
+    ALLOC_ID=$(just get-alloc-id {{job_file}})
+    echo "Pulling from allocation: $ALLOC_ID"
+    
+    # Create local destination directory if needed
+    mkdir -p "{{local_path}}"
+    
+    # Check if remote path is a directory or file
+    IS_DIR=$(nomad alloc exec "$ALLOC_ID" bash -c "[[ -d {{remote_path}} ]] && echo 'yes' || echo 'no'")
+    
+    # For a directory: tar and stream back
+    if [ "$IS_DIR" = "yes" ]; then
+        echo "Streaming directory from allocation..."
+        nomad alloc exec -i "$ALLOC_ID" bash -c "cd {{remote_path}} && tar cf - ." | \
+        tar xf - -C "{{local_path}}"
+    # For a single file: use cat from allocation
+    else
+        echo "Streaming file from allocation..."
+        nomad alloc exec -i "$ALLOC_ID" cat "{{remote_path}}" > "{{local_path}}/$(basename "{{remote_path}}")"
+    fi
+    
+    echo "Transfer complete!"
