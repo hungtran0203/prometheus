@@ -1,0 +1,21 @@
+{
+  "ID": "nomad-server-raspi",
+  "Name": "nomad-raspi",
+  "Tags": [
+    "nomad",
+    "server",
+    "raspi",
+    "hashicorp"
+  ],
+  "Address": "192.168.1.114",
+  "Port": 4646,
+  "Meta": {
+    "version": "1.0",
+    "datacenter": "raspi"
+  },
+  "Check": {
+    "HTTP": "http://192.168.1.114:4646/v1/status/leader",
+    "Interval": "10s",
+    "Timeout": "5s"
+  }
+} 

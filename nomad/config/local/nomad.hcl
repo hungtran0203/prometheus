@@ -10,7 +10,7 @@ server {
   
   # Allow servers from different datacenters to join
   server_join {
-    retry_join = []  # Will be populated by Raspberry Pi server when it comes online
+    retry_join = ["nomad-raspi.service.consul:4648"]  # Use DNS for Raspberry Pi Nomad server
     retry_max = 0    # Retry indefinitely 
     retry_interval = "15s"
   }
@@ -83,9 +83,9 @@ data_dir = "/Volumes/Data/working/hungtran0203/prometheus/nomad/data"
 # Bind to all interfaces to be accessible from Raspberry Pi
 bind_addr = "0.0.0.0"
 
-# Advertise on the WiFi IP address that Raspberry Pi can reach
+# Advertise using DNS-resolvable name
 advertise {
-  http = "192.168.1.104"
-  rpc  = "192.168.1.104"
-  serf = "192.168.1.104"
+  http = "nomad.service.consul"
+  rpc  = "nomad.service.consul"
+  serf = "nomad.service.consul"
 } 
