@@ -1,5 +1,8 @@
 version: '3'
 
+vars:
+  NOMAD_CONFIG_FILE: '{{default "../nomad/config/clients/ras.hcl" .NOMAD_CONFIG_FILE}}'
+
 tasks:
   default:
     cmds:
@@ -9,10 +12,30 @@ tasks:
 
   setup-nomad:
     desc: Setup Nomad on the Raspberry Pi
+    summary: |
+      Usage: 
+      - task setup-nomad                                         # Setup with default client config
+      - task setup-nomad NOMAD_CONFIG_FILE=../nomad/config/raspi/nomad.hcl  # Setup with server+client config
     cmds:
-      - echo "Setting up Nomad on the Raspberry Pi..."
-      - ./scripts/setup-raspi-nomad.sh
+      - echo "Setting up Nomad on the Raspberry Pi using {{.NOMAD_CONFIG_FILE}}..."
+      - NOMAD_CONFIG_FILE={{.NOMAD_CONFIG_FILE}} ./scripts/setup-raspi-nomad.sh
       - echo "✅ Nomad setup complete on Raspberry Pi"
+
+  update-nomad:
+    desc: Update Nomad configuration on the Raspberry Pi
+    summary: |
+      Usage:
+      - task update-nomad                                         # Update with default client config
+      - task update-nomad NOMAD_CONFIG_FILE=../nomad/config/raspi/nomad.hcl  # Update with server+client config
+    cmds:
+      - echo "Updating Nomad configuration on the Raspberry Pi using {{.NOMAD_CONFIG_FILE}}..."
+      - |
+        CONFIG_NAME=$(basename {{.NOMAD_CONFIG_FILE}})
+        echo "Copying configuration file ${CONFIG_NAME}..."
+        scp {{.NOMAD_CONFIG_FILE}} hung@ras.local:/home/hung/nomad-config.hcl
+        ssh hung@ras.local "sudo cp /home/hung/nomad-config.hcl /etc/nomad.d/nomad.hcl"
+      - ssh hung@ras.local "sudo systemctl restart nomad"
+      - echo "✅ Nomad configuration updated on Raspberry Pi"
 
   fix-drivers:
     desc: Fix Docker drivers on the Raspberry Pi
@@ -41,6 +64,19 @@ tasks:
     cmds:
       - echo "Checking Nomad status on the Raspberry Pi..."
       - ssh hung@ras.local "nomad status"
+
+  check-members:
+    desc: Check Nomad server members on the Raspberry Pi
+    cmds:
+      - echo "Checking Nomad server members on the Raspberry Pi..."
+      - ssh hung@ras.local "nomad server members"
+
+  stop-nomad:
+    desc: Stop Nomad on the Raspberry Pi
+    cmds:
+      - echo "Stopping Nomad on the Raspberry Pi..."
+      - ssh hung@ras.local "sudo systemctl stop nomad"
+      - echo "✅ Nomad stopped on Raspberry Pi"
 
   restart-nomad:
     desc: Restart Nomad on the Raspberry Pi

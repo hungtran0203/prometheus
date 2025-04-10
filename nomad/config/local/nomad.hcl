@@ -4,7 +4,20 @@
 server {
   enabled = true
   bootstrap_expect = 1
+  
+  # Enable federation with other datacenters 
+  enabled_schedulers = ["service", "batch", "system"]
+  
+  # Allow servers from different datacenters to join
+  server_join {
+    retry_join = []  # Will be populated by Raspberry Pi server when it comes online
+    retry_max = 0    # Retry indefinitely 
+    retry_interval = "15s"
+  }
 }
+
+# Explicitly set region for federation
+region = "global"
 
 datacenter = "dc1"
 
@@ -16,29 +29,39 @@ client {
   meta {
     "prometheus.metrics.enabled" = "true"
   }
+  
+  # Network configuration
+  network_interface = "en0"
 
-  # Join the Docker network
-  network_interface = "docker0"
+  # Docker configuration for networking
+  options {
+    "docker.bridge.name" = "nomad_bridge"
+    "docker.privileged.enabled" = "true"
+    "docker.volumes.enabled" = "true"
+  }
 }
 
 # Vault integration
 vault {
   enabled = true
-  address = "http://172.28.0.2:8200"  # Vault's static IP in the private network
-  token = "root"  # Using the root token for development
+  # Use Consul DNS instead of static IP
+  address = "http://vault.service.consul:8200"
+  token = "root"
   create_from_role = "nomad-cluster"
 }
 
 # Consul integration
 consul {
-  address = "172.28.0.3:8500"  # Consul's static IP in the private network
+  # Use localhost for local Consul agent
+  address = "127.0.0.1:8500"
   auto_advertise = true
   server_auto_join = true
   client_auto_join = true
-  
-  # Service registration settings
   server_service_name = "nomad-server"
   client_service_name = "nomad-client"
+  
+  # Register services with tags for each network
+  tags = ["wifi", "nomad_network", "monitoring_network"]
 }
 
 # UI settings
@@ -57,24 +80,12 @@ telemetry {
 # Data directory
 data_dir = "/Volumes/Data/working/hungtran0203/prometheus/nomad/data"
 
-# Bind to all interfaces to be accessible from containers
+# Bind to all interfaces to be accessible from Raspberry Pi
 bind_addr = "0.0.0.0"
 
-# Advertise on the host's IP address
+# Advertise on the WiFi IP address that Raspberry Pi can reach
 advertise {
-  http = "127.0.0.1"
-  rpc  = "127.0.0.1"
-  serf = "127.0.0.1"
-}
-
-# Configure network for container networking
-client {
-  cni_path = "/opt/cni/bin"
-  cni_config_dir = "/etc/cni/net.d"
-
-  # Enable bridge network mode for better container-to-container communication
-  host_network = false
-
-  # Tell Nomad which docker network to use
-  host_network_interface = "docker0"
+  http = "192.168.1.104"
+  rpc  = "192.168.1.104"
+  serf = "192.168.1.104"
 } 

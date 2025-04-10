@@ -3,15 +3,16 @@
   "Name": "consul",
   "Tags": [
     "consul",
-    "hashicorp"
+    "hashicorp",
+    "nomad_network"
   ],
-  "Address": "127.0.0.1",
+  "Address": "192.168.1.104",
   "Port": 8500,
   "Meta": {
     "version": "1.0"
   },
   "Check": {
-    "HTTP": "http://127.0.0.1:8500/v1/status/leader",
+    "HTTP": "http://192.168.1.104:8500/v1/status/leader",
     "Interval": "10s",
     "Timeout": "5s"
   }

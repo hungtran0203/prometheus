@@ -3,7 +3,8 @@
   "Name": "vault",
   "Tags": [
     "vault",
-    "hashicorp"
+    "hashicorp",
+    "nomad_network"
   ],
   "Address": "192.168.1.104",
   "Port": 8200,

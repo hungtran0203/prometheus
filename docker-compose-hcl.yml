@@ -20,6 +20,8 @@ services:
       nomad_network:
         ipv4_address: 172.28.0.2
       monitoring_network:
+    hostname: hc-vault.service.consul
+    # Exposing on host network is handled by port mappings (8200:8200)
 
   # HashiCorp Consul for service discovery and configuration
   hc-consul:
@@ -29,15 +31,24 @@ services:
       - "8500:8500"  # HTTP API and UI on standard port
       - "8600:8600/tcp"  # DNS interface (TCP) on standard port
       - "8600:8600/udp"  # DNS interface (UDP) on standard port
+      - "8301:8301/tcp"  # LAN Serf (TCP)
+      - "8301:8301/udp"  # LAN Serf (UDP)
+      - "8302:8302/tcp"  # WAN Serf (TCP)
+      - "8302:8302/udp"  # WAN Serf (UDP)
+      - "8300:8300"      # Server RPC
     volumes:
       - ./consul/config:/consul/config
       - ./consul/data:/consul/data
-    command: agent -dev -client=0.0.0.0
+    command: agent -dev -client=0.0.0.0 -recursor=8.8.8.8 -dns-port=8600 -domain=consul -enable-script-checks -log-level=warn
+    environment:
+      - CONSUL_ALLOW_PRIVILEGED_PORTS=true
     restart: on-failure
     networks:
       nomad_network:
         ipv4_address: 172.28.0.3
       monitoring_network:
+    hostname: hc-consul.service.consul
+    # Exposing on host network is handled by port mappings
 
 volumes:
   vault_data:

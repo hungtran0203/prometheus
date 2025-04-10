@@ -1,4 +1,4 @@
-job "docker-node" {
+job "nomad-node" {
   datacenters = ["dc1", "aws", "gcp"]
   type        = "service"
 
@@ -7,19 +7,20 @@ job "docker-node" {
 
     network {
       port "http" {
-        static = 8080
+        static = 8081
       }
     }
 
     service {
-      name = "docker-node"
+      name = "nomad-node"
       port = "http"
       
       tags = [
         "app",
         "node",
+        "nomad_network",
         "traefik.enable=true",
-        "traefik.http.routers.node.rule=Host(`node.localhost`)"
+        "traefik.http.routers.nomad-node.rule=Host(`nomad-node.localhost`)"
       ]
       
       check {
@@ -37,7 +38,8 @@ job "docker-node" {
       config {
         image = "node:alpine"
         command = "sh"
-        args = ["-c", "echo 'Starting Node.js server on port 8080' && npm install -g http-server && echo 'TESTING VAULT CONNECTIVITY:' && echo '- DNS Resolution:' && getent hosts vault.service.consul || echo 'Failed to resolve vault.service.consul' && echo '- HTTP Connection:' && wget -q -T 2 --spider http://vault.service.consul:8200/v1/sys/health && echo 'Vault is reachable over HTTP' || echo 'Vault is NOT reachable over HTTP' && echo '- Starting HTTP Server...' && http-server -p 8080"]
+        args = ["-c", "echo 'Starting Node.js server on port 8081' && npm install -g http-server && echo 'TESTING VAULT CONNECTIVITY:' && echo '- DNS Resolution:' && getent hosts vault.service.consul || echo 'Failed to resolve vault.service.consul' && echo '- HTTP Connection:' && wget -q -T 2 --spider http://vault.service.consul:8200/v1/sys/health && echo 'Vault is reachable over HTTP' || echo 'Vault is NOT reachable over HTTP' && echo '- Starting HTTP Server...' && http-server -p 8081"]
+        
         ports = ["http"]
         
         # Use bridge networking
@@ -47,6 +49,7 @@ job "docker-node" {
       env {
         # Use Consul service discovery for addresses
         CONSUL_HTTP_ADDR = "${NOMAD_IP_http}:8500"
+        VAULT_ADDR = "http://vault.service.consul:8200"
       }
 
       resources {

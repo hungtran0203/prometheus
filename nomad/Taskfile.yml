@@ -27,6 +27,11 @@ tasks:
       - task stop
       - nomad agent -config=config/aws/nomad.hcl
 
+  start-raspi:
+    desc: Start Nomad with Raspberry Pi configuration (run on the Raspberry Pi)
+    cmds:
+      - ./start-nomad-raspi.sh
+
   stop:
     desc: Stop local Nomad
     cmds:
@@ -70,10 +75,6 @@ tasks:
     cmds:
       - cd ../ras && task fix-cgroups
 
-  ssh-raspi:
-    desc: SSH into the Raspberry Pi
-    cmds:
-      - cd ../ras && task ssh
 
   node-status:
     desc: Check status of Nomad nodes
