@@ -12,7 +12,7 @@ job "docker-node" {
     }
 
     service {
-      name = "docker-node"
+      name = "node-2"
       port = "http"
       
       tags = [
@@ -21,13 +21,6 @@ job "docker-node" {
         "traefik.enable=true",
         "traefik.http.routers.node.rule=Host(`node.localhost`)"
       ]
-
-      check {
-        type     = "tcp"
-        port     = "http"
-        interval = "10s"
-        timeout  = "2s"
-      }
     }
 
     task "node" {
